@@ -1,0 +1,1485 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>لوحة التحكم - نظام تقييم المركبات</title>
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <!-- New Features CSS -->
+    <link rel="stylesheet" href="css/new-features/dark-mode.css">
+    <link rel="stylesheet" href="css/new-features/notifications.css">
+    <link rel="stylesheet" href="css/new-features/validation.css">
+    <link rel="stylesheet" href="css/new-features/filters.css">
+    <link rel="stylesheet" href="css/new-features/enhanced-stats.css">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #1f2937;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        /* Auth Check Loader */
+        #authCheckLoader {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+
+        .loader-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-logo i {
+            font-size: 2rem;
+        }
+
+        .sidebar-logo h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.2rem;
+        }
+
+        .user-details h3 {
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+
+        .user-details p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-right: 3px solid transparent;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            background: #f8fafc;
+            color: var(--primary);
+            border-right-color: var(--primary);
+        }
+
+        .menu-item i {
+            font-size: 1.2rem;
+            width: 25px;
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-right: var(--sidebar-width);
+            min-height: 100vh;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+        }
+
+        .top-bar h1 {
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+
+        .top-bar-actions {
+            display: flex;
+            gap: 15px;
+            align-items: center;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+
+        /* Stats Cards */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            padding: 30px;
+        }
+
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 12px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+        }
+
+        .stat-card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .stat-icon {
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+        }
+
+        .stat-icon.primary { background: linear-gradient(135deg, #667eea, #764ba2); color: white; }
+        .stat-icon.success { background: linear-gradient(135deg, #10b981, #059669); color: white; }
+        .stat-icon.warning { background: linear-gradient(135deg, #f59e0b, #d97706); color: white; }
+        .stat-icon.info { background: linear-gradient(135deg, #3b82f6, #2563eb); color: white; }
+
+        .stat-value {
+            font-size: 2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            color: #64748b;
+            font-size: 0.95rem;
+        }
+
+        /* Vehicles Grid */
+        .vehicles-section {
+            padding: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .vehicle-card {
+            background: white;
+            border-radius: 12px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+
+        .vehicle-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .vehicle-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .vehicle-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .vehicle-id {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .vehicle-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-excellent { background: #d1fae5; color: #065f46; }
+        .status-good { background: #dbeafe; color: #1e40af; }
+        .status-fair { background: #fef3c7; color: #92400e; }
+        .status-poor { background: #fee2e2; color: #991b1b; }
+
+        .vehicle-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .detail-item i {
+            color: var(--primary);
+        }
+
+        .vehicle-value {
+            padding: 15px;
+            background: #f8fafc;
+            border-radius: 8px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .vehicle-value span {
+            display: block;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .vehicle-value strong {
+            font-size: 1.3rem;
+            color: var(--primary);
+        }
+
+        .vehicle-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .btn-view, .btn-edit, .btn-delete {
+            padding: 8px;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+        }
+
+        .btn-view { background: #dbeafe; color: #1e40af; }
+        .btn-edit { background: #fef3c7; color: #92400e; }
+        .btn-delete { background: #fee2e2; color: #991b1b; }
+
+        .btn-view:hover, .btn-edit:hover, .btn-delete:hover {
+            transform: scale(1.05);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+        }
+
+        .empty-state p {
+            margin-bottom: 20px;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 16px;
+            width: 100%;
+            max-width: 500px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+            color: var(--dark);
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+        }
+
+        .modal-body {
+            padding: 20px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e5e7eb;
+            border-radius: 8px;
+            font-family: inherit;
+            font-size: 1rem;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--primary);
+        }
+
+        .modal-footer {
+            padding: 20px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e5e7eb;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        /* Notification */
+        .notification {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            min-width: 300px;
+            padding: 15px 20px;
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            z-index: 10000;
+            animation: slideIn 0.3s ease;
+        }
+
+        @keyframes slideIn {
+            from { transform: translateX(-100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+        }
+
+        .notification.success { background: var(--success); color: white; }
+        .notification.error { background: var(--danger); color: white; }
+        .notification.warning { background: var(--warning); color: white; }
+        .notification.info { background: var(--info); color: white; }
+
+        .notification-close {
+            margin-right: auto;
+            background: none;
+            border: none;
+            color: inherit;
+            cursor: pointer;
+            opacity: 0.8;
+        }
+
+        /* Connection Status Badge */
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.online {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .connection-status.offline {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .connection-status.syncing {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar {
+                transform: translateX(100%);
+                transition: transform 0.3s;
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-right: 0;
+            }
+            
+            .stats-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .vehicles-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .connection-status {
+                bottom: 10px;
+                left: 10px;
+                padding: 8px 15px;
+                font-size: 0.8rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Check Loader -->
+    <div id="authCheckLoader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <h3>جاري التحقق من الحساب...</h3>
+        </div>
+    </div>
+
+    <!-- Main Content (Hidden until authenticated) -->
+    <div id="mainContent" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-car"></i>
+                    <h2>نظام المركبات</h2>
+                </div>
+                
+                <div class="user-info">
+                    <div class="user-avatar" id="sidebarAvatar">
+                        <span id="sidebarInitials">U</span>
+                    </div>
+                    <div class="user-details">
+                        <h3 id="sidebarUserName">المستخدم</h3>
+                        <p id="sidebarUserEmail">user@email.com</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-item active">
+                    <i class="fas fa-th-large"></i>
+                    <span>لوحة التحكم</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-car"></i>
+                    <span>المركبات</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-chart-bar"></i>
+                    <span>التقارير</span>
+                </div>
+                <div class="menu-item">
+                    <i class="fas fa-cog"></i>
+                    <span>الإعدادات</span>
+                </div>
+                <div class="menu-item" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>تسجيل الخروج</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1>مرحباً، <span id="profileName">المستخدم</span></h1>
+                <div class="top-bar-actions">
+                    <button class="btn btn-success" onclick="exportAllToExcel()">
+                        <i class="fas fa-file-excel"></i>
+                        تصدير الكل
+                    </button>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        <i class="fas fa-plus"></i>
+                        إضافة مركبة
+                    </button>
+                </div>
+            </header>
+
+            <!-- Filters Section (New Feature) -->
+            <div id="nf-filters-container" style="padding: 20px 30px 0;"></div>
+            
+            <!-- Enhanced Stats Section (New Feature) -->
+            <div id="nf-enhanced-stats"></div>
+            
+            <!-- Original Stats Section (Hidden - kept for fallback) -->
+            <section class="stats-grid" style="display: none;">
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div>
+                            <div class="stat-value" id="statTotalVehicles">0</div>
+                            <div class="stat-label">إجمالي المركبات</div>
+                        </div>
+                        <div class="stat-icon primary">
+                            <i class="fas fa-car"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div>
+                            <div class="stat-value"><span id="statTotalValue">0</span> ر.س</div>
+                            <div class="stat-label">القيمة الإجمالية</div>
+                        </div>
+                        <div class="stat-icon success">
+                            <i class="fas fa-dollar-sign"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div>
+                            <div class="stat-value" id="statAvgRating">-</div>
+                            <div class="stat-label">متوسط التقييم</div>
+                        </div>
+                        <div class="stat-icon warning">
+                            <i class="fas fa-star"></i>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="stat-card">
+                    <div class="stat-card-header">
+                        <div>
+                            <div class="stat-value" id="statThisMonth">0</div>
+                            <div class="stat-label">هذا الشهر</div>
+                        </div>
+                        <div class="stat-icon info">
+                            <i class="fas fa-calendar"></i>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Vehicles Section -->
+            <section class="vehicles-section">
+                <div class="section-header">
+                    <h2>المركبات (<span id="vehicleCount">0</span>)</h2>
+                </div>
+                <div class="vehicles-grid" id="vehiclesGrid">
+                    <!-- Vehicles will be loaded here -->
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="vehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle">إضافة مركبة جديدة</h3>
+                <button class="btn-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="vehicleForm">
+                    <div class="form-group">
+                        <label>رقم العقد</label>
+                        <input type="text" class="form-input" id="contractNo" required>
+                    </div>
+                    <div class="form-group">
+                        <label>اسم العميل</label>
+                        <input type="text" class="form-input" id="customerName" required>
+                    </div>
+                    <div class="form-group">
+                        <label>الصانع</label>
+                        <input type="text" class="form-input" id="make" required>
+                    </div>
+                    <div class="form-group">
+                        <label>الموديل</label>
+                        <input type="text" class="form-input" id="model" required>
+                    </div>
+                    <div class="form-group">
+                        <label>السنة</label>
+                        <input type="number" class="form-input" id="year" required>
+                    </div>
+                    <div class="form-group">
+                        <label>رقم الشاصي (VIN)</label>
+                        <input type="text" class="form-input" id="vin">
+                    </div>
+                    <div class="form-group">
+                        <label>رقم اللوحة</label>
+                        <input type="text" class="form-input" id="plateNo">
+                    </div>
+                    <div class="form-group">
+                        <label>عداد المسافات (كم)</label>
+                        <input type="number" class="form-input" id="odometer">
+                    </div>
+                    <div class="form-group">
+                        <label>القيمة السوقية (ر.س)</label>
+                        <input type="number" class="form-input" id="marketValue">
+                    </div>
+                    <div class="form-group">
+                        <label>التقييم العام</label>
+                        <select class="form-input" id="overallRating">
+                            <option value="excellent">ممتاز</option>
+                            <option value="good">جيد</option>
+                            <option value="fair">مقبول</option>
+                            <option value="poor">ضعيف</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn" onclick="closeModal()">إلغاء</button>
+                <button class="btn btn-primary" onclick="saveVehicle()">حفظ</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">جاري التحميل...</p>
+        </div>
+    </div>
+
+    <!-- Notification Container -->
+    <div id="notificationContainer"></div>
+
+    <!-- Connection Status Badge -->
+    <div class="connection-status online" id="connectionStatus">
+        <span class="status-dot"></span>
+        <span id="connectionText">متصل</span>
+    </div>
+
+    <script>
+        // Firebase Configuration
+        const firebaseConfig = {
+            apiKey: "AIzaSyA7B27LIH9FPZAsMKr5lvm2AIa3ZkZNOUo",
+            authDomain: "vec-login-58dea.firebaseapp.com",
+            projectId: "vec-login-58dea",
+            storageBucket: "vec-login-58dea.firebasestorage.app",
+            messagingSenderId: "651347381212",
+            appId: "1:651347381212:web:dc7eba2bbf69532e13dd19",
+            measurementId: "G-P9Q2KBSNQH"
+        };
+
+        firebase.initializeApp(firebaseConfig);
+        const auth = firebase.auth();
+        const db = firebase.firestore();
+
+        let currentUser = null;
+        let vehicles = [];
+        let currentVehicleId = null;
+        let unsubscribeSnapshot = null;
+
+        // Auth Check with timeout
+        let authTimeout = null;
+        
+        auth.onAuthStateChanged(async (user) => {
+            const loader = document.getElementById('authCheckLoader');
+            const main = document.getElementById('mainContent');
+            
+            // Clear any existing timeout
+            if (authTimeout) {
+                clearTimeout(authTimeout);
+                authTimeout = null;
+            }
+            
+            if (user) {
+                console.log('User authenticated:', user.email);
+                currentUser = user;
+                loader.style.display = 'none';
+                main.style.display = 'block';
+                
+                updateUserUI(user);
+                setupRealtimeSync();
+                setupConnectionMonitor();
+                await loadVehicles();
+            } else {
+                console.log('User not authenticated, redirecting to login...');
+                window.location.replace('index.html');
+            }
+        });
+        
+        // Set auth timeout - redirect if auth takes too long
+        authTimeout = setTimeout(() => {
+            console.log('Auth check timeout - redirecting to login');
+            window.location.replace('index.html');
+        }, 10000); // 10 seconds timeout
+
+        function updateUserUI(user) {
+            const name = user.displayName || 'المستخدم';
+            const email = user.email || '';
+            const initials = getInitials(name);
+            
+            document.getElementById('sidebarUserName').textContent = name;
+            document.getElementById('sidebarUserEmail').textContent = email;
+            document.getElementById('sidebarInitials').textContent = initials;
+            document.getElementById('profileName').textContent = name.split(' ')[0];
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        function setupRealtimeSync() {
+            if (!currentUser) return;
+            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            
+            updateConnectionStatus('syncing', 'جاري المزامنة...');
+            
+            unsubscribeSnapshot = db.collection('users')
+                .doc(currentUser.uid)
+                .collection('vehicles')
+                .orderBy('createdAt', 'desc')
+                .onSnapshot(
+                    (snapshot) => {
+                        vehicles = [];
+                        snapshot.forEach(doc => {
+                            vehicles.push({ id: doc.id, ...doc.data() });
+                        });
+                        renderVehicles();
+                        updateStats();
+                        updateConnectionStatus('online', 'متصل ومتزامن');
+                    },
+                    (error) => {
+                        console.error('Sync Error:', error);
+                        updateConnectionStatus('offline', 'غير متصل');
+                        showNotification('خطأ في المزامنة: ' + error.message, 'error');
+                    }
+                );
+        }
+        
+        // ========================================
+        // Connection Monitor
+        // ========================================
+        function setupConnectionMonitor() {
+            // Monitor online/offline status
+            window.addEventListener('online', () => {
+                updateConnectionStatus('online', 'متصل');
+                showNotification('تم استعادة الاتصال', 'success');
+                // Re-setup realtime sync when back online
+                setupRealtimeSync();
+            });
+            
+            window.addEventListener('offline', () => {
+                updateConnectionStatus('offline', 'غير متصل');
+                showNotification('انقطع الاتصال - البيانات قد لا تكون محدثة', 'warning');
+            });
+            
+            // Initial status
+            if (navigator.onLine) {
+                updateConnectionStatus('online', 'متصل');
+            } else {
+                updateConnectionStatus('offline', 'غير متصل');
+            }
+        }
+        
+        function updateConnectionStatus(status, text) {
+            const statusEl = document.getElementById('connectionStatus');
+            const textEl = document.getElementById('connectionText');
+            
+            if (statusEl && textEl) {
+                statusEl.className = 'connection-status ' + status;
+                textEl.textContent = text;
+            }
+        }
+
+        async function loadVehicles() {
+            showLoading('جاري تحميل البيانات...');
+            
+            try {
+                const snapshot = await db.collection('users')
+                    .doc(currentUser.uid)
+                    .collection('vehicles')
+                    .orderBy('createdAt', 'desc')
+                    .get();
+                
+                vehicles = [];
+                snapshot.forEach(doc => {
+                    vehicles.push({ id: doc.id, ...doc.data() });
+                });
+                
+                renderVehicles();
+                updateStats();
+                hideLoading();
+            } catch (error) {
+                console.error('Load Error:', error);
+                hideLoading();
+                showNotification('خطأ في تحميل البيانات', 'error');
+            }
+        }
+
+        function renderVehicles() {
+            const grid = document.getElementById('vehiclesGrid');
+            document.getElementById('vehicleCount').textContent = vehicles.length;
+            
+            if (vehicles.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-car"></i>
+                        <h3>لا توجد مركبات</h3>
+                        <p>ابدأ بإضافة مركبة جديدة</p>
+                        <button class="btn btn-primary" onclick="openAddModal()">
+                            <i class="fas fa-plus"></i>
+                            إضافة مركبة
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = vehicles.map(v => `
+                <div class="vehicle-card">
+                    <div class="vehicle-header">
+                        <div>
+                            <div class="vehicle-title">${v.make || ''} ${v.model || ''} ${v.year || ''}</div>
+                            <div class="vehicle-id">${v.contractNo || 'بدون رقم عقد'}</div>
+                        </div>
+                        <span class="vehicle-status status-${v.overallRating || 'good'}">${getRatingText(v.overallRating)}</span>
+                    </div>
+                    
+                    <div class="vehicle-details">
+                        <div class="detail-item">
+                            <i class="fas fa-user"></i>
+                            <span>${v.customerName || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-barcode"></i>
+                            <span>${v.vin || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>${v.odometer ? v.odometer.toLocaleString() + ' كم' : 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-id-card"></i>
+                            <span>${v.plateNo || 'غير محدد'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="vehicle-value">
+                        <span>القيمة السوقية</span>
+                        <strong>${v.marketValue ? v.marketValue.toLocaleString() : 0} ريال</strong>
+                    </div>
+                    
+                    <div class="vehicle-actions">
+                        <button class="btn-view" onclick="viewVehicle('${v.id}')">
+                            <i class="fas fa-eye"></i>
+                            عرض
+                        </button>
+                        <button class="btn-edit" onclick="editVehicle('${v.id}')">
+                            <i class="fas fa-edit"></i>
+                            تعديل
+                        </button>
+                        <button class="btn-delete" onclick="confirmDelete('${v.id}')">
+                            <i class="fas fa-trash"></i>
+                            حذف
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getRatingText(rating) {
+            const ratings = {
+                'excellent': 'ممتاز',
+                'good': 'جيد',
+                'fair': 'مقبول',
+                'poor': 'ضعيف'
+            };
+            return ratings[rating] || 'غير محدد';
+        }
+
+        function updateStats() {
+            const total = vehicles.length;
+            const totalValue = vehicles.reduce((sum, v) => sum + (parseFloat(v.marketValue) || 0), 0);
+            
+            const ratingValues = { excellent: 4, good: 3, fair: 2, poor: 1 };
+            const ratedVehicles = vehicles.filter(v => v.overallRating);
+            const avgRating = ratedVehicles.length > 0
+                ? ratedVehicles.reduce((sum, v) => sum + (ratingValues[v.overallRating] || 0), 0) / ratedVehicles.length
+                : 0;
+            
+            const now = new Date();
+            const thisMonth = vehicles.filter(v => {
+                if (!v.createdAt) return false;
+                const date = v.createdAt.toDate ? v.createdAt.toDate() : new Date(v.createdAt);
+                return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear();
+            }).length;
+            
+            document.getElementById('statTotalVehicles').textContent = total;
+            document.getElementById('statTotalValue').textContent = totalValue.toLocaleString();
+            document.getElementById('statAvgRating').textContent = avgRating > 0 ? avgRating.toFixed(1) : '-';
+            document.getElementById('statThisMonth').textContent = thisMonth;
+        }
+
+        function openAddModal() {
+            currentVehicleId = null;
+            document.getElementById('modalTitle').textContent = 'إضافة مركبة جديدة';
+            document.getElementById('vehicleForm').reset();
+            document.getElementById('vehicleModal').classList.add('show');
+        }
+
+        function editVehicle(id) {
+            const vehicle = vehicles.find(v => v.id === id);
+            if (!vehicle) return;
+            
+            currentVehicleId = id;
+            document.getElementById('modalTitle').textContent = 'تعديل المركبة';
+            document.getElementById('contractNo').value = vehicle.contractNo || '';
+            document.getElementById('customerName').value = vehicle.customerName || '';
+            document.getElementById('make').value = vehicle.make || '';
+            document.getElementById('model').value = vehicle.model || '';
+            document.getElementById('year').value = vehicle.year || '';
+            document.getElementById('vin').value = vehicle.vin || '';
+            document.getElementById('plateNo').value = vehicle.plateNo || '';
+            document.getElementById('odometer').value = vehicle.odometer || '';
+            document.getElementById('marketValue').value = vehicle.marketValue || '';
+            document.getElementById('overallRating').value = vehicle.overallRating || 'good';
+            
+            document.getElementById('vehicleModal').classList.add('show');
+        }
+
+        function viewVehicle(id) {
+            const vehicle = vehicles.find(v => v.id === id);
+            if (!vehicle) return;
+            
+            alert(`تفاصيل المركبة:\n\nالصانع: ${vehicle.make}\nالموديل: ${vehicle.model}\nالسنة: ${vehicle.year}\nالعميل: ${vehicle.customerName}\nالقيمة: ${vehicle.marketValue} ريال`);
+        }
+
+        async function saveVehicle() {
+            const data = {
+                contractNo: document.getElementById('contractNo').value,
+                customerName: document.getElementById('customerName').value,
+                make: document.getElementById('make').value,
+                model: document.getElementById('model').value,
+                year: document.getElementById('year').value,
+                vin: document.getElementById('vin').value,
+                plateNo: document.getElementById('plateNo').value,
+                odometer: document.getElementById('odometer').value,
+                marketValue: document.getElementById('marketValue').value,
+                overallRating: document.getElementById('overallRating').value,
+                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+            };
+            
+            showLoading(currentVehicleId ? 'جاري التحديث...' : 'جاري الحفظ...');
+            
+            try {
+                if (currentVehicleId) {
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('vehicles').doc(currentVehicleId).update(data);
+                    showNotification('تم تحديث المركبة بنجاح', 'success');
+                } else {
+                    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('vehicles').add(data);
+                    showNotification('تم إضافة المركبة بنجاح', 'success');
+                }
+                
+                closeModal();
+                hideLoading();
+            } catch (error) {
+                console.error('Save Error:', error);
+                hideLoading();
+                showNotification('خطأ في الحفظ', 'error');
+            }
+        }
+
+        function confirmDelete(id) {
+            if (confirm('هل أنت متأكد من حذف هذه المركبة؟')) {
+                deleteVehicle(id);
+            }
+        }
+
+        async function deleteVehicle(id) {
+            showLoading('جاري الحذف...');
+            
+            try {
+                await db.collection('users').doc(currentUser.uid)
+                    .collection('vehicles').doc(id).delete();
+                showNotification('تم حذف المركبة', 'info');
+                hideLoading();
+            } catch (error) {
+                console.error('Delete Error:', error);
+                hideLoading();
+                showNotification('خطأ في الحذف', 'error');
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('vehicleModal').classList.remove('show');
+        }
+
+        async function exportAllToExcel() {
+            if (vehicles.length === 0) {
+                showNotification('لا توجد مركبات للتصدير', 'warning');
+                return;
+            }
+            
+            showLoading('جاري تصدير جميع المركبات...');
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                const allData = [
+                    ['تقرير المركبات المستردة'],
+                    [`تاريخ التقرير: ${new Date().toLocaleString('ar-SA')}`],
+                    [`إجمالي المركبات: ${vehicles.length}`],
+                    [''],
+                    ['رقم العقد', 'العميل', 'الصانع', 'الموديل', 'السنة', 'VIN', 'القيمة', 'التقييم']
+                ];
+                
+                vehicles.forEach(v => {
+                    allData.push([
+                        v.contractNo || '',
+                        v.customerName || '',
+                        v.make || '',
+                        v.model || '',
+                        v.year || '',
+                        v.vin || '',
+                        v.marketValue || '',
+                        getRatingText(v.overallRating)
+                    ]);
+                });
+                
+                const ws = XLSX.utils.aoa_to_sheet(allData);
+                ws['!cols'] = [
+                    { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 },
+                    { wch: 6 }, { wch: 20 }, { wch: 12 }, { wch: 10 }
+                ];
+                
+                XLSX.utils.book_append_sheet(wb, ws, 'جميع المركبات');
+                
+                const date = new Date().toISOString().split('T')[0];
+                XLSX.writeFile(wb, `All_Vehicles_${date}.xlsx`);
+                
+                hideLoading();
+                showNotification(`تم تصدير ${vehicles.length} مركبة بنجاح!`, 'success');
+            } catch (error) {
+                console.error('Export Error:', error);
+                hideLoading();
+                showNotification('خطأ في التصدير', 'error');
+            }
+        }
+
+        async function handleLogout() {
+            if (confirm('هل أنت متأكد من تسجيل الخروج؟')) {
+                showLoading('جاري تسجيل الخروج...');
+                try {
+                    if (unsubscribeSnapshot) unsubscribeSnapshot();
+                    await auth.signOut();
+                    window.location.href = 'index.html';
+                } catch (error) {
+                    console.error('Logout Error:', error);
+                    hideLoading();
+                    showNotification('خطأ في تسجيل الخروج', 'error');
+                }
+            }
+        }
+
+        function showLoading(text = 'جاري التحميل...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationContainer');
+            
+            const icons = {
+                success: 'fa-check-circle',
+                error: 'fa-exclamation-circle',
+                warning: 'fa-exclamation-triangle',
+                info: 'fa-info-circle'
+            };
+            
+            const notification = document.createElement('div');
+            notification.className = `notification ${type}`;
+            notification.innerHTML = `
+                <i class="fas ${icons[type]}"></i>
+                <span>${message}</span>
+                <button class="notification-close" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => {
+                notification.style.opacity = '0';
+                notification.style.transform = 'translateX(-50px)';
+                setTimeout(() => notification.remove(), 300);
+            }, 4000);
+        }
+    </script>
+
+    <!-- New Features JS -->
+    <script src="js/new-features/dark-mode-toggle.js"></script>
+    <script src="js/new-features/enhanced-notifications.js"></script>
+    <script src="js/new-features/form-validator.js"></script>
+    <script src="js/new-features/advanced-filters.js"></script>
+    <script src="js/new-features/dashboard-stats.js"></script>
+    
+    <script>
+        // ========================================
+        // New Features Integration
+        // ========================================
+        
+        // Override showNotification to use enhanced notifications
+        const originalShowNotification = window.showNotification;
+        window.showNotification = function(message, type = 'info') {
+            if (window.NFNotify) {
+                NFNotify.show({ message, type });
+            } else if (originalShowNotification) {
+                originalShowNotification(message, type);
+            }
+        };
+        
+        // Initialize filters when vehicles are loaded
+        let filtersInitialized = false;
+        const originalRenderVehicles = window.renderVehicles;
+        window.renderVehicles = function() {
+            // Initialize filters UI once
+            if (!filtersInitialized && vehicles.length > 0) {
+                NFFilters.createFiltersUI('nf-filters-container', {
+                    onFilter: function(filteredData) {
+                        // Re-render with filtered data
+                        renderFilteredVehicles(filteredData);
+                    }
+                });
+                NFFilters.populateFilterOptions(vehicles);
+                filtersInitialized = true;
+            }
+            
+            // Apply current filters
+            if (NFFilters.instance) {
+                const filtered = NFFilters.instance.getFilteredData(vehicles);
+                renderFilteredVehicles(filtered);
+            } else {
+                renderFilteredVehicles(vehicles);
+            }
+        };
+        
+        // Render filtered vehicles
+        function renderFilteredVehicles(vehicleList) {
+            const grid = document.getElementById('vehiclesGrid');
+            document.getElementById('vehicleCount').textContent = vehicleList.length;
+            NFFilters.updateResultsCount(vehicleList.length);
+            
+            if (vehicleList.length === 0) {
+                grid.innerHTML = `
+                    <div class="nf-no-results" style="grid-column: 1/-1;">
+                        <i class="fas fa-search"></i>
+                        <h3>لا توجد نتائج</h3>
+                        <p>حاول تغيير معايير البحث أو الفلترة</p>
+                        <button class="btn btn-primary" onclick="NFFilters.instance.reset()">
+                            <i class="fas fa-redo"></i>
+                            إعادة تعيين الفلاتر
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = vehicleList.map(v => `
+                <div class="vehicle-card">
+                    <div class="vehicle-header">
+                        <div>
+                            <div class="vehicle-title">${v.make || ''} ${v.model || ''} ${v.year || ''}</div>
+                            <div class="vehicle-id">${v.contractNo || 'بدون رقم عقد'}</div>
+                        </div>
+                        <span class="vehicle-status status-${v.overallRating || 'good'}">${getRatingText(v.overallRating)}</span>
+                    </div>
+                    
+                    <div class="vehicle-details">
+                        <div class="detail-item">
+                            <i class="fas fa-user"></i>
+                            <span>${v.customerName || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-barcode"></i>
+                            <span>${v.vin || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>${v.odometer ? v.odometer.toLocaleString() + ' كم' : 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-id-card"></i>
+                            <span>${v.plateNo || 'غير محدد'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="vehicle-value">
+                        <span>القيمة السوقية</span>
+                        <strong>${v.marketValue ? v.marketValue.toLocaleString() : 0} ريال</strong>
+                    </div>
+                    
+                    <div class="vehicle-actions">
+                        <button class="btn-view" onclick="viewVehicle('${v.id}')">
+                            <i class="fas fa-eye"></i>
+                            عرض
+                        </button>
+                        <button class="btn-edit" onclick="editVehicle('${v.id}')">
+                            <i class="fas fa-edit"></i>
+                            تعديل
+                        </button>
+                        <button class="btn-delete" onclick="confirmDelete('${v.id}')">
+                            <i class="fas fa-trash"></i>
+                            حذف
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Initialize form validator for vehicle modal
+        document.addEventListener('DOMContentLoaded', function() {
+            new NFValidator.FormValidator('#vehicleForm', {
+                realTime: true,
+                scrollToError: true,
+                showSuccessState: true
+            });
+        });
+        
+        // Update enhanced stats when vehicles change
+        const originalUpdateStats = window.updateStats;
+        window.updateStats = function() {
+            // Update enhanced stats
+            if (window.NFStats && vehicles.length >= 0) {
+                NFStats.update('nf-enhanced-stats', vehicles);
+            }
+            // Also call original if exists
+            if (originalUpdateStats) {
+                originalUpdateStats();
+            }
+        };
+    </script>
+</body>
+</html>
