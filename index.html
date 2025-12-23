@@ -3,13 +3,19 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="نظام تقييم المركبات المستردة - تسجيل الدخول">
+    <meta name="theme-color" content="#667eea">
     <title>نظام تقييم المركبات - تسجيل الدخول</title>
+    
+    <!-- Fonts & Icons -->
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
     <!-- New Features CSS -->
     <link rel="stylesheet" href="css/new-features/dark-mode.css">
     <link rel="stylesheet" href="css/new-features/notifications.css">
     <link rel="stylesheet" href="css/new-features/validation.css">
+    
     <style>
         * {
             margin: 0;
@@ -537,6 +543,54 @@
             font-size: 0.85rem;
         }
 
+        /* Password Strength Indicator */
+        .password-strength {
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .password-strength.show {
+            display: block;
+        }
+        
+        .password-strength-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .password-strength-fill {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        .password-strength-text {
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+        
+        .strength-weak { background: #ef4444; }
+        .strength-fair { background: #f59e0b; }
+        .strength-good { background: #10b981; }
+        .strength-strong { background: #059669; }
+
+        /* Version Badge */
+        .version-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #64748b;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
         /* Responsive */
         @media (max-width: 480px) {
             .auth-content {
@@ -556,6 +610,66 @@
                 gap: 15px;
                 align-items: flex-start;
             }
+            
+            .version-badge {
+                display: none;
+            }
+        }
+
+        /* Dark Mode Overrides */
+        html.dark .auth-card {
+            background: #1e293b;
+        }
+        
+        html.dark .auth-tabs {
+            background: #0f172a;
+        }
+        
+        html.dark .auth-tab {
+            color: #94a3b8;
+        }
+        
+        html.dark .auth-tab.active {
+            background: #1e293b;
+            color: #818cf8;
+        }
+        
+        html.dark .form-group label {
+            color: #f1f5f9;
+        }
+        
+        html.dark .input-wrapper input {
+            background: #334155;
+            border-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        html.dark .input-wrapper input:focus {
+            background: #1e293b;
+            border-color: #818cf8;
+        }
+        
+        html.dark .btn-social {
+            background: #334155;
+            border-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        html.dark .loading-content {
+            background: #1e293b;
+        }
+        
+        html.dark .loading-content p {
+            color: #f1f5f9;
+        }
+        
+        html.dark .features-list {
+            border-top-color: #475569;
+        }
+        
+        html.dark .features-list h4,
+        html.dark .feature-item {
+            color: #94a3b8;
         }
     </style>
 </head>
@@ -684,10 +798,16 @@
                             <label>كلمة المرور</label>
                             <div class="input-wrapper">
                                 <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password">
+                                <input type="password" id="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
                                 <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)">
                                     <i class="fas fa-eye"></i>
                                 </button>
+                            </div>
+                            <div class="password-strength" id="passwordStrength">
+                                <div class="password-strength-bar">
+                                    <div class="password-strength-fill" id="passwordStrengthFill"></div>
+                                </div>
+                                <div class="password-strength-text" id="passwordStrengthText"></div>
                             </div>
                         </div>
 
@@ -695,7 +815,7 @@
                             <label>تأكيد كلمة المرور</label>
                             <div class="input-wrapper">
                                 <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password">
+                                <input type="password" id="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password" data-match="registerPassword">
                                 <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)">
                                     <i class="fas fa-eye"></i>
                                 </button>
@@ -760,7 +880,7 @@
         </div>
 
         <div class="auth-footer">
-            <p>© 2024 نظام تقييم المركبات المستردة</p>
+            <p>© 2024 نظام تقييم المركبات المستردة - الإصدار 4.0</p>
         </div>
     </div>
 
@@ -769,6 +889,11 @@
             <div class="loading-spinner"></div>
             <p id="loadingText">جاري المعالجة...</p>
         </div>
+    </div>
+
+    <!-- Version Badge -->
+    <div class="version-badge">
+        <i class="fas fa-code-branch"></i> v4.0 Enhanced
     </div>
 
     <!-- Firebase SDK -->
@@ -797,10 +922,10 @@
         // ========================================
         // Global Variables
         // ========================================
-        let isProcessingAuth = false; // Flag to prevent multiple redirects
-        let authCheckComplete = false; // Flag to track if initial auth check is done
-        let redirectTimeout = null; // Timeout for redirect
-        const REDIRECT_DELAY = 1500; // Delay before redirect in ms
+        let isProcessingAuth = false;
+        let authCheckComplete = false;
+        let redirectTimeout = null;
+        const REDIRECT_DELAY = 1500;
 
         // ========================================
         // Tab Switching
@@ -829,6 +954,43 @@
                 input.type = 'password';
                 icon.className = 'fas fa-eye';
             }
+        }
+
+        // ========================================
+        // Password Strength Indicator
+        // ========================================
+        function updatePasswordStrength(password) {
+            const strengthEl = document.getElementById('passwordStrength');
+            const fillEl = document.getElementById('passwordStrengthFill');
+            const textEl = document.getElementById('passwordStrengthText');
+            
+            if (password.length === 0) {
+                strengthEl.classList.remove('show');
+                return;
+            }
+            
+            strengthEl.classList.add('show');
+            
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+            
+            const levels = [
+                { class: 'strength-weak', text: 'ضعيفة جداً', width: '20%', color: '#ef4444' },
+                { class: 'strength-weak', text: 'ضعيفة', width: '40%', color: '#f59e0b' },
+                { class: 'strength-fair', text: 'متوسطة', width: '60%', color: '#eab308' },
+                { class: 'strength-good', text: 'جيدة', width: '80%', color: '#10b981' },
+                { class: 'strength-strong', text: 'قوية جداً', width: '100%', color: '#059669' }
+            ];
+            
+            const level = levels[Math.min(strength, 4)];
+            fillEl.style.width = level.width;
+            fillEl.style.background = level.color;
+            textEl.textContent = level.text;
+            textEl.style.color = level.color;
         }
 
         // ========================================
@@ -943,7 +1105,6 @@
                 const userCredential = await auth.createUserWithEmailAndPassword(email, password);
                 await userCredential.user.updateProfile({ displayName: name });
                 
-                // Create user document in Firestore
                 await db.collection('users').doc(userCredential.user.uid).set({
                     name: name,
                     email: email,
@@ -967,7 +1128,7 @@
         }
 
         // ========================================
-        // Google Sign In - COMPLETELY FIXED VERSION
+        // Google Sign In
         // ========================================
         async function signInWithGoogle() {
             if (isProcessingAuth) {
@@ -986,25 +1147,19 @@
                     prompt: 'select_account'
                 });
                 
-                console.log('Starting Google sign in popup...');
-                
-                // Set timeout to reset state if popup takes too long
                 const popupTimeout = setTimeout(() => {
                     console.log('Popup timeout - resetting state');
                     hideLoading();
                     disableButtons(false);
                     isProcessingAuth = false;
-                }, 60000); // 60 second timeout
+                }, 60000);
                 
                 const result = await auth.signInWithPopup(provider);
                 clearTimeout(popupTimeout);
                 
-                console.log('Google sign in successful:', result.user.email);
                 showLoading('تم تسجيل الدخول! جاري التحويل...');
                 
-                // Check if new user and create profile
                 if (result.additionalUserInfo && result.additionalUserInfo.isNewUser) {
-                    console.log('Creating new user profile in Firestore...');
                     try {
                         await db.collection('users').doc(result.user.uid).set({
                             name: result.user.displayName || 'مستخدم',
@@ -1018,16 +1173,12 @@
                                 notifications: true
                             }
                         });
-                        console.log('User profile created successfully');
                     } catch (profileError) {
                         console.warn('Could not create user profile:', profileError);
-                        // Continue even if profile creation fails
                     }
                 }
                 
                 showAlert('تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
-                
-                // Force redirect after successful login
                 forceRedirect();
                 
             } catch (error) {
@@ -1056,12 +1207,10 @@
         function forceRedirect() {
             console.log('Forcing redirect to dashboard...');
             
-            // Clear any existing timeout
             if (redirectTimeout) {
                 clearTimeout(redirectTimeout);
             }
             
-            // Set new redirect timeout
             redirectTimeout = setTimeout(() => {
                 console.log('Executing redirect now...');
                 window.location.replace('dashboard.html');
@@ -1069,7 +1218,7 @@
         }
 
         // ========================================
-        // Microsoft Sign In - FIXED VERSION
+        // Microsoft Sign In
         // ========================================
         async function signInWithMicrosoft() {
             if (isProcessingAuth) {
@@ -1085,7 +1234,6 @@
             try {
                 const provider = new firebase.auth.OAuthProvider('microsoft.com');
                 
-                // Set timeout to reset state if popup takes too long
                 const popupTimeout = setTimeout(() => {
                     console.log('Microsoft popup timeout - resetting state');
                     hideLoading();
@@ -1096,7 +1244,6 @@
                 const result = await auth.signInWithPopup(provider);
                 clearTimeout(popupTimeout);
                 
-                console.log('Microsoft sign in successful:', result.user.email);
                 showLoading('تم تسجيل الدخول! جاري التحويل...');
                 
                 if (result.additionalUserInfo && result.additionalUserInfo.isNewUser) {
@@ -1211,27 +1358,22 @@
         }
 
         // ========================================
-        // Auth State Change - COMPLETELY FIXED VERSION
+        // Auth State Change
         // ========================================
         auth.onAuthStateChanged(user => {
             console.log('Auth state changed:', user ? user.email : 'null', 'isProcessingAuth:', isProcessingAuth);
             
             if (user) {
-                // User is signed in
                 if (!isProcessingAuth) {
-                    // User was already signed in (e.g., page refresh while logged in)
                     console.log('User already signed in, redirecting to dashboard...');
                     showLoading('جاري التحويل للوحة التحكم...');
                     setTimeout(() => {
                         window.location.replace('dashboard.html');
                     }, 800);
                 } else {
-                    // Auth is being processed by login/register functions
-                    // Don't interfere - let those functions handle redirect
                     console.log('Auth in progress - letting login function handle redirect');
                 }
             } else {
-                // User is signed out
                 console.log('User not signed in - showing login page');
                 hideLoading();
                 disableButtons(false);
@@ -1245,7 +1387,6 @@
         // ========================================
         document.addEventListener('DOMContentLoaded', () => {
             console.log('Page loaded, checking auth state...');
-            // Forms are ready, buttons should be enabled
             disableButtons(false);
         });
     </script>
@@ -1259,26 +1400,28 @@
         // Initialize Form Validator for login and register forms
         document.addEventListener('DOMContentLoaded', function() {
             // Login form validation
-            new NFValidator.FormValidator('#loginForm', {
-                realTime: true,
-                scrollToError: true,
-                showSuccessState: true
-            });
-            
-            // Register form validation
-            new NFValidator.FormValidator('#registerForm', {
-                realTime: true,
-                scrollToError: true,
-                showSuccessState: true
-            });
+            if (window.NFValidator) {
+                new NFValidator.FormValidator('#loginForm', {
+                    realTime: true,
+                    scrollToError: true,
+                    showSuccessState: true
+                });
+                
+                // Register form validation
+                new NFValidator.FormValidator('#registerForm', {
+                    realTime: true,
+                    scrollToError: true,
+                    showSuccessState: true
+                });
+            }
             
             // Override the default showAlert to use NFNotify
             const originalShowAlert = window.showAlert;
             window.showAlert = function(message, type = 'error') {
+                // Show both - native alert box and notification
+                originalShowAlert(message, type);
                 if (window.NFNotify) {
                     NFNotify.show({ message, type });
-                } else {
-                    originalShowAlert(message, type);
                 }
             };
         });
