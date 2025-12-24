@@ -21,6 +21,7 @@
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
     <!-- Firebase SDK -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
@@ -2240,18 +2241,22 @@
                 }
             }
             
-            // Populate filter options with current data
-            if (filtersInitialized && vehicles.length > 0 && window.NFFilters) {
+            // Populate filter options with current data (this also stores vehicles for filtering)
+            if (window.NFFilters && vehicles.length >= 0) {
                 NFFilters.populateFilterOptions(vehicles);
             }
             
-            // Apply current filters
+            // Apply current filters using stored original data
             if (NFFilters && NFFilters.instance) {
-                const filtered = NFFilters.instance.getFilteredData(vehicles);
+                const originalData = NFFilters.getOriginalVehicles();
+                const filtered = NFFilters.instance.getFilteredData(originalData.length > 0 ? originalData : vehicles);
                 renderFilteredVehicles(filtered);
             } else {
                 renderFilteredVehicles(vehicles);
             }
+            
+            // Update stats using full vehicle list (not filtered)
+            updateStats();
         };
         
         // Render filtered vehicles
