@@ -296,6 +296,16 @@ window.NFFilters = (function() {
                     'repair_sell': 'إصلاح ثم بيع',
                     'auction': 'مزاد',
                     'scrap': 'تخريد'
+                },
+                operationStatus: {
+                    'working': 'تعمل',
+                    'not_working': 'لا تعمل',
+                    'needs_maintenance': 'تحتاج صيانة'
+                },
+                warehouse: {
+                    'main': 'المستودع الرئيسي',
+                    'east': 'المستودع الشرقي',
+                    'west': 'المستودع الغربي'
                 }
             };
             
@@ -331,7 +341,9 @@ window.NFFilters = (function() {
                 fuelType: 'نوع الوقود',
                 color: 'اللون',
                 recommendation: 'التوصية',
-                recoveryLocation: 'موقع الاسترداد'
+                recoveryLocation: 'موقع الاسترداد',
+                operationStatus: 'حالة التشغيل',
+                warehouse: 'المستودع'
             };
             return labels[key] || key;
         }
@@ -458,6 +470,32 @@ window.NFFilters = (function() {
                         </label>
                         <select class="nf-filter-select" data-filter="recoveryLocation" id="nf-filter-location">
                             <option value="">جميع المواقع</option>
+                        </select>
+                    </div>
+                    
+                    <div class="nf-filter-group">
+                        <label class="nf-filter-label">
+                            <i class="fas fa-cog"></i>
+                            حالة التشغيل
+                        </label>
+                        <select class="nf-filter-select" data-filter="operationStatus" id="nf-filter-opStatus">
+                            <option value="">جميع الحالات</option>
+                            <option value="working">تعمل</option>
+                            <option value="not_working">لا تعمل</option>
+                            <option value="needs_maintenance">تحتاج صيانة</option>
+                        </select>
+                    </div>
+                    
+                    <div class="nf-filter-group">
+                        <label class="nf-filter-label">
+                            <i class="fas fa-warehouse"></i>
+                            المستودع
+                        </label>
+                        <select class="nf-filter-select" data-filter="warehouse" id="nf-filter-warehouse">
+                            <option value="">جميع المستودعات</option>
+                            <option value="main">المستودع الرئيسي</option>
+                            <option value="east">المستودع الشرقي</option>
+                            <option value="west">المستودع الغربي</option>
                         </select>
                     </div>
                 </div>

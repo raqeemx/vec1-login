@@ -17,6 +17,7 @@
     <link rel="stylesheet" href="css/new-features/validation.css">
     <link rel="stylesheet" href="css/new-features/filters.css">
     <link rel="stylesheet" href="css/new-features/enhanced-stats.css">
+    <link rel="stylesheet" href="css/new-features/activity-warehouse.css">
     
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -1077,6 +1078,14 @@
                     <i class="fas fa-car"></i>
                     <span>المركبات</span>
                 </div>
+                <div class="menu-item" onclick="showSection('activities')">
+                    <i class="fas fa-history"></i>
+                    <span>سجل النشاطات</span>
+                </div>
+                <div class="menu-item" onclick="showSection('warehouse')">
+                    <i class="fas fa-warehouse"></i>
+                    <span>المستودعات</span>
+                </div>
                 <div class="menu-item" onclick="exportAllToExcel()">
                     <i class="fas fa-file-excel"></i>
                     <span>تصدير Excel</span>
@@ -1120,7 +1129,7 @@
             <div id="nf-enhanced-stats"></div>
 
             <!-- Vehicles Section -->
-            <section class="vehicles-section">
+            <section class="vehicles-section content-section active" id="vehiclesSection">
                 <div class="section-header">
                     <h2><i class="fas fa-car" style="margin-left: 10px; color: var(--primary);"></i>المركبات (<span id="vehicleCount">0</span>)</h2>
                     <button class="btn btn-outline" onclick="confirmDeleteAll()" id="deleteAllBtn" style="display: none;">
@@ -1130,6 +1139,20 @@
                 </div>
                 <div class="vehicles-grid" id="vehiclesGrid">
                     <!-- Vehicles will be loaded here -->
+                </div>
+            </section>
+            
+            <!-- Activities Section -->
+            <section class="content-section" id="activitiesSection" style="padding: 30px;">
+                <div class="nf-loading">
+                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل النشاطات...
+                </div>
+            </section>
+            
+            <!-- Warehouse Section -->
+            <section class="content-section" id="warehouseSection" style="padding: 30px;">
+                <div class="nf-loading">
+                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...
                 </div>
             </section>
         </main>
@@ -1244,6 +1267,27 @@
                             <option value="auction">مزاد</option>
                             <option value="scrap">تخريد</option>
                         </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-cog" style="margin-left: 5px;"></i>حالة التشغيل</label>
+                            <select class="form-input" id="operationStatus">
+                                <option value="">اختر...</option>
+                                <option value="working">✅ تعمل</option>
+                                <option value="not_working">❌ لا تعمل</option>
+                                <option value="needs_maintenance">🔧 تحتاج صيانة</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-warehouse" style="margin-left: 5px;"></i>المستودع</label>
+                            <select class="form-input" id="vehicleWarehouse">
+                                <option value="">اختر المستودع...</option>
+                                <option value="main">المستودع الرئيسي - الرياض</option>
+                                <option value="east">المستودع الشرقي - الدمام</option>
+                                <option value="west">المستودع الغربي - جدة</option>
+                            </select>
+                        </div>
                     </div>
                     
                     <div class="form-group full-width">
@@ -1592,6 +1636,12 @@
                         </div>
                     </div>
                     
+                    <!-- Operation Status & Warehouse badges -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                        ${v.operationStatus ? getOperationStatusBadge(v.operationStatus) : ''}
+                        ${v.warehouseName ? `<span class="nf-status-badge" style="background: #e0e7ff; color: #667eea;"><i class="fas fa-warehouse"></i> ${v.warehouseName}</span>` : ''}
+                    </div>
+                    
                     <div class="vehicle-value">
                         <span>القيمة السوقية</span>
                         <strong>${v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0} ريال</strong>
@@ -1668,6 +1718,8 @@
             document.getElementById('recoveryDate').value = vehicle.recoveryDate || '';
             document.getElementById('recoveryLocation').value = vehicle.recoveryLocation || '';
             document.getElementById('recommendation').value = vehicle.recommendation || '';
+            document.getElementById('operationStatus').value = vehicle.operationStatus || '';
+            document.getElementById('vehicleWarehouse').value = vehicle.warehouse || '';
             document.getElementById('notes').value = vehicle.notes || '';
             
             // Show existing images
@@ -1746,6 +1798,14 @@
                         <span>${getRecommendationText(vehicle.recommendation)}</span>
                     </div>
                     <div class="view-detail-item">
+                        <label>حالة التشغيل</label>
+                        <span>${getOperationStatusBadge(vehicle.operationStatus)}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>المستودع</label>
+                        <span><i class="fas fa-warehouse" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.warehouseName || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
                         <label>ملاحظات</label>
                         <span>${vehicle.notes || '-'}</span>
                     </div>
@@ -1776,6 +1836,21 @@
                 'electric': 'كهربائي'
             };
             return types[type] || '-';
+        }
+        
+        function getOperationStatusBadge(status) {
+            const statuses = {
+                'working': { label: 'تعمل', icon: 'fa-check-circle', color: '#10b981', bgColor: '#d1fae5' },
+                'not_working': { label: 'لا تعمل', icon: 'fa-times-circle', color: '#ef4444', bgColor: '#fee2e2' },
+                'needs_maintenance': { label: 'تحتاج صيانة', icon: 'fa-wrench', color: '#f59e0b', bgColor: '#fef3c7' }
+            };
+            
+            const info = statuses[status];
+            if (!info) return '-';
+            
+            return `<span class="nf-status-badge" style="background: ${info.bgColor}; color: ${info.color};">
+                <i class="fas ${info.icon}"></i> ${info.label}
+            </span>`;
         }
         
         function getRecommendationText(rec) {
@@ -1853,6 +1928,11 @@
         // Save Vehicle
         // ========================================
         async function saveVehicle() {
+            // Get warehouse info
+            const warehouseSelect = document.getElementById('vehicleWarehouse');
+            const warehouseId = warehouseSelect.value;
+            const warehouseName = warehouseSelect.options[warehouseSelect.selectedIndex]?.text || '';
+            
             const data = {
                 contractNo: document.getElementById('contractNo').value.trim(),
                 customerName: document.getElementById('customerName').value.trim(),
@@ -1869,6 +1949,9 @@
                 recoveryDate: document.getElementById('recoveryDate').value,
                 recoveryLocation: document.getElementById('recoveryLocation').value.trim(),
                 recommendation: document.getElementById('recommendation').value,
+                operationStatus: document.getElementById('operationStatus').value,
+                warehouse: warehouseId,
+                warehouseName: warehouseName.includes('اختر') ? '' : warehouseName,
                 notes: document.getElementById('notes').value.trim(),
                 images: pendingImages,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -1889,15 +1972,33 @@
             showLoading(currentVehicleId ? 'جاري التحديث...' : 'جاري الحفظ...');
             
             try {
+                const isEdit = !!currentVehicleId;
+                
                 if (currentVehicleId) {
                     await db.collection('users').doc(currentUser.uid)
                         .collection('vehicles').doc(currentVehicleId).update(data);
                     showNotification('تم تحديث المركبة بنجاح', 'success');
+                    
+                    // Log activity
+                    if (window.NFActivity) {
+                        window.NFActivity.log('VEHICLE_UPDATED', {
+                            vehicleName: `${data.make} ${data.model} ${data.year}`,
+                            contractNo: data.contractNo
+                        });
+                    }
                 } else {
                     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                     await db.collection('users').doc(currentUser.uid)
                         .collection('vehicles').add(data);
                     showNotification('تم إضافة المركبة بنجاح', 'success');
+                    
+                    // Log activity
+                    if (window.NFActivity) {
+                        window.NFActivity.log('VEHICLE_ADDED', {
+                            vehicleName: `${data.make} ${data.model} ${data.year}`,
+                            contractNo: data.contractNo
+                        });
+                    }
                 }
                 
                 closeModal();
@@ -1945,8 +2046,20 @@
             showLoading('جاري الحذف...');
             
             try {
+                // Get vehicle info before deleting
+                const vehicle = vehicles.find(v => v.id === currentVehicleId);
+                
                 await db.collection('users').doc(currentUser.uid)
                     .collection('vehicles').doc(currentVehicleId).delete();
+                
+                // Log activity
+                if (window.NFActivity && vehicle) {
+                    window.NFActivity.log('VEHICLE_DELETED', {
+                        vehicleName: `${vehicle.make} ${vehicle.model} ${vehicle.year}`,
+                        contractNo: vehicle.contractNo
+                    });
+                }
+                
                 showNotification('تم حذف المركبة', 'info');
                 hideLoading();
             } catch (error) {
@@ -2010,42 +2123,103 @@
                     [`تاريخ التقرير: ${new Date().toLocaleString('ar-SA')}`],
                     [`إجمالي المركبات: ${vehicles.length}`],
                     [`إجمالي القيمة: ${vehicles.reduce((sum, v) => sum + (parseFloat(v.marketValue) || 0), 0).toLocaleString()} ر.س`],
-                    ['']
+                    [''],
+                    ['⚠️ ملاحظة: روابط الصور متاحة في ورقة "المركبات" - اضغط على الروابط لعرض الصور']
                 ];
                 
                 const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
                 XLSX.utils.book_append_sheet(wb, summarySheet, 'ملخص');
                 
-                // Vehicles data sheet
-                const headers = ['رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود', 'القيمة السوقية', 'التقييم', 'التوصية', 'تاريخ الاسترداد', 'موقع الاسترداد', 'ملاحظات'];
-                const data = vehicles.map(v => [
-                    v.contractNo || '',
-                    v.customerName || '',
-                    v.make || '',
-                    v.model || '',
-                    v.year || '',
-                    v.vin || '',
-                    v.plateNo || '',
-                    v.odometer || '',
-                    v.color || '',
-                    getFuelTypeText(v.fuelType),
-                    v.marketValue || '',
-                    getRatingText(v.overallRating),
-                    getRecommendationText(v.recommendation),
-                    v.recoveryDate || '',
-                    v.recoveryLocation || '',
-                    v.notes || ''
-                ]);
+                // Vehicles data sheet with images
+                const headers = ['رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود', 'القيمة السوقية', 'التقييم', 'التوصية', 'حالة التشغيل', 'المستودع', 'تاريخ الاسترداد', 'موقع الاسترداد', 'ملاحظات', 'صورة 1', 'صورة 2', 'صورة 3'];
+                
+                // Get operation status text
+                function getOpStatusText(status) {
+                    const statuses = {
+                        'working': 'تعمل',
+                        'not_working': 'لا تعمل',
+                        'needs_maintenance': 'تحتاج صيانة'
+                    };
+                    return statuses[status] || '';
+                }
+                
+                const data = vehicles.map(v => {
+                    const images = v.images || [];
+                    return [
+                        v.contractNo || '',
+                        v.customerName || '',
+                        v.make || '',
+                        v.model || '',
+                        v.year || '',
+                        v.vin || '',
+                        v.plateNo || '',
+                        v.odometer || '',
+                        v.color || '',
+                        getFuelTypeText(v.fuelType),
+                        v.marketValue || '',
+                        getRatingText(v.overallRating),
+                        getRecommendationText(v.recommendation),
+                        getOpStatusText(v.operationStatus),
+                        v.warehouseName || '',
+                        v.recoveryDate || '',
+                        v.recoveryLocation || '',
+                        v.notes || '',
+                        images[0] || '',
+                        images[1] || '',
+                        images[2] || ''
+                    ];
+                });
                 
                 const vehiclesSheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
-                vehiclesSheet['!cols'] = headers.map(() => ({ wch: 15 }));
+                
+                // Set column widths
+                vehiclesSheet['!cols'] = [
+                    { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
+                    { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
+                    { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
+                    { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 50 }, { wch: 50 }, { wch: 50 }
+                ];
+                
+                // Add hyperlinks to image URLs
+                vehicles.forEach((v, index) => {
+                    const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1-indexed + header)
+                    const images = v.images || [];
+                    
+                    // Image 1 - Column S (index 18)
+                    if (images[0]) {
+                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 18 });
+                        if (vehiclesSheet[cellRef]) {
+                            vehiclesSheet[cellRef].l = { Target: images[0], Tooltip: 'انقر لعرض الصورة 1' };
+                        }
+                    }
+                    // Image 2 - Column T (index 19)
+                    if (images[1]) {
+                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 19 });
+                        if (vehiclesSheet[cellRef]) {
+                            vehiclesSheet[cellRef].l = { Target: images[1], Tooltip: 'انقر لعرض الصورة 2' };
+                        }
+                    }
+                    // Image 3 - Column U (index 20)
+                    if (images[2]) {
+                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 20 });
+                        if (vehiclesSheet[cellRef]) {
+                            vehiclesSheet[cellRef].l = { Target: images[2], Tooltip: 'انقر لعرض الصورة 3' };
+                        }
+                    }
+                });
+                
                 XLSX.utils.book_append_sheet(wb, vehiclesSheet, 'المركبات');
+                
+                // Log activity
+                if (window.NFActivity) {
+                    window.NFActivity.log('EXPORT_EXCEL', { count: vehicles.length });
+                }
                 
                 const date = new Date().toISOString().split('T')[0];
                 XLSX.writeFile(wb, `Vehicles_Export_${date}.xlsx`);
                 
                 hideLoading();
-                showNotification(`تم تصدير ${vehicles.length} مركبة بنجاح!`, 'success');
+                showNotification(`تم تصدير ${vehicles.length} مركبة بنجاح مع روابط الصور! 📊`, 'success');
             } catch (error) {
                 console.error('Export Error:', error);
                 hideLoading();
@@ -2177,16 +2351,167 @@
             console.log(`[${type}] ${message}`);
         }
         
-        function showSection(section) {
-            // For future use - navigation between sections
+        // Current active section
+        let currentSection = 'vehicles';
+        
+        async function showSection(section) {
+            currentSection = section;
+            
+            // Update menu active state
             document.querySelectorAll('.menu-item').forEach(item => {
                 item.classList.remove('active');
             });
-            event.target.closest('.menu-item').classList.add('active');
+            if (event && event.target) {
+                const menuItem = event.target.closest('.menu-item');
+                if (menuItem) menuItem.classList.add('active');
+            }
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // Show filters and stats only for vehicles/dashboard sections
+            const filtersContainer = document.getElementById('nf-filters-container');
+            const statsContainer = document.getElementById('nf-enhanced-stats');
+            
+            if (section === 'dashboard' || section === 'vehicles') {
+                if (filtersContainer) filtersContainer.style.display = 'block';
+                if (statsContainer) statsContainer.style.display = 'block';
+                document.getElementById('vehiclesSection').classList.add('active');
+            } else {
+                if (filtersContainer) filtersContainer.style.display = 'none';
+                if (statsContainer) statsContainer.style.display = 'none';
+            }
+            
+            // Handle specific sections
+            if (section === 'activities') {
+                const activitiesSection = document.getElementById('activitiesSection');
+                activitiesSection.classList.add('active');
+                await loadActivitiesPage();
+            } else if (section === 'warehouse') {
+                const warehouseSection = document.getElementById('warehouseSection');
+                warehouseSection.classList.add('active');
+                await loadWarehousePage();
+            }
             
             // Close mobile sidebar
             if (window.innerWidth <= 992) {
                 toggleSidebar();
+            }
+        }
+        
+        // Load activities page
+        async function loadActivitiesPage() {
+            const container = document.getElementById('activitiesSection');
+            container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل النشاطات...</div>';
+            
+            if (window.NFActivity) {
+                const activities = await NFActivity.getAll(100);
+                container.innerHTML = NFActivity.createPageHTML(activities);
+            } else {
+                container.innerHTML = `
+                    <div class="nf-empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h3>سجل النشاطات</h3>
+                        <p>سيتم تسجيل جميع النشاطات هنا</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Load warehouse page
+        async function loadWarehousePage() {
+            const container = document.getElementById('warehouseSection');
+            container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...</div>';
+            
+            if (window.NFWarehouse) {
+                const warehouses = await NFWarehouse.getAll();
+                const stats = await NFWarehouse.getStats(vehicles);
+                container.innerHTML = NFWarehouse.createPageHTML(warehouses, stats);
+            } else {
+                // Fallback warehouse display
+                const defaultWarehouses = [
+                    { id: 'main', name: 'المستودع الرئيسي', location: 'الرياض', capacity: 100 },
+                    { id: 'east', name: 'المستودع الشرقي', location: 'الدمام', capacity: 50 },
+                    { id: 'west', name: 'المستودع الغربي', location: 'جدة', capacity: 75 }
+                ];
+                
+                const stats = {};
+                vehicles.forEach(v => {
+                    const wh = v.warehouse || 'unassigned';
+                    stats[wh] = (stats[wh] || 0) + 1;
+                });
+                const totalVehicles = vehicles.length;
+                
+                container.innerHTML = `
+                    <div class="nf-warehouse-page">
+                        <div class="nf-warehouse-header">
+                            <h2><i class="fas fa-warehouse"></i> إدارة المستودعات</h2>
+                        </div>
+                        
+                        <div class="nf-warehouse-stats">
+                            <div class="nf-wh-stat-card">
+                                <i class="fas fa-warehouse"></i>
+                                <div class="nf-wh-stat-value">${defaultWarehouses.length}</div>
+                                <div class="nf-wh-stat-label">المستودعات</div>
+                            </div>
+                            <div class="nf-wh-stat-card">
+                                <i class="fas fa-car"></i>
+                                <div class="nf-wh-stat-value">${totalVehicles}</div>
+                                <div class="nf-wh-stat-label">المركبات</div>
+                            </div>
+                            <div class="nf-wh-stat-card">
+                                <i class="fas fa-question-circle"></i>
+                                <div class="nf-wh-stat-value">${stats.unassigned || 0}</div>
+                                <div class="nf-wh-stat-label">غير مخصصة</div>
+                            </div>
+                        </div>
+                        
+                        <div class="nf-warehouse-grid">
+                            ${defaultWarehouses.map(wh => {
+                                const count = stats[wh.id] || 0;
+                                const percentage = wh.capacity > 0 ? Math.round((count / wh.capacity) * 100) : 0;
+                                const statusClass = percentage >= 90 ? 'full' : percentage >= 70 ? 'warning' : 'ok';
+                                
+                                return `
+                                    <div class="nf-warehouse-card">
+                                        <div class="nf-wh-card-header">
+                                            <h3>${wh.name}</h3>
+                                            <span class="nf-wh-location">
+                                                <i class="fas fa-map-marker-alt"></i> ${wh.location}
+                                            </span>
+                                        </div>
+                                        <div class="nf-wh-card-body">
+                                            <div class="nf-wh-capacity">
+                                                <div class="nf-wh-capacity-bar">
+                                                    <div class="nf-wh-capacity-fill ${statusClass}" style="width: ${percentage}%"></div>
+                                                </div>
+                                                <div class="nf-wh-capacity-text">
+                                                    <span>${count} / ${wh.capacity}</span>
+                                                    <span>${percentage}%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="nf-wh-card-footer">
+                                            <button class="btn btn-outline btn-sm" onclick="filterByWarehouse('${wh.id}')">
+                                                <i class="fas fa-car"></i> عرض المركبات
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Filter vehicles by warehouse
+        function filterByWarehouse(warehouseId) {
+            showSection('vehicles');
+            if (window.NFFilters && window.NFFilters.instance) {
+                window.NFFilters.instance.setFilter('warehouse', warehouseId);
             }
         }
 
@@ -2207,6 +2532,7 @@
     <script src="js/new-features/form-validator.js"></script>
     <script src="js/new-features/advanced-filters.js"></script>
     <script src="js/new-features/dashboard-stats.js"></script>
+    <script src="js/new-features/activity-warehouse.js"></script>
     
     <script>
         // ========================================
