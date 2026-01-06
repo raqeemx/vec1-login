@@ -1283,11 +1283,50 @@
                             <label><i class="fas fa-warehouse" style="margin-left: 5px;"></i>المستودع</label>
                             <select class="form-input" id="vehicleWarehouse">
                                 <option value="">اختر المستودع...</option>
-                                <option value="main">المستودع الرئيسي - الرياض</option>
-                                <option value="east">المستودع الشرقي - الدمام</option>
-                                <option value="west">المستودع الغربي - جدة</option>
+                                <!-- سيتم ملء المستودعات ديناميكياً -->
                             </select>
                         </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-user-tie" style="margin-left: 5px;"></i>القائم بالتقييم</label>
+                            <select class="form-input" id="evaluatorSelect">
+                                <option value="">-- اختر القائم بالتقييم --</option>
+                                <!-- سيتم ملء القائمين ديناميكياً -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-id-badge" style="margin-left: 5px;"></i>اسم المقيّم (يدوي)</label>
+                            <input type="text" class="form-input" id="evaluatorName" placeholder="اسم القائم بالتقييم">
+                        </div>
+                    </div>
+                    
+                    <!-- GPS Location Section -->
+                    <div class="form-group full-width" style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 2px dashed #e5e7eb;">
+                        <label style="font-size: 1.1rem; color: var(--primary); margin-bottom: 15px; display: block;">
+                            <i class="fas fa-map-marker-alt" style="margin-left: 8px;"></i>الموقع الجغرافي (GPS)
+                        </label>
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>خط العرض (Latitude)</label>
+                                <input type="text" class="form-input" id="gpsLatitude" placeholder="مثال: 24.7136" readonly style="background: #f1f5f9;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>خط الطول (Longitude)</label>
+                                <input type="text" class="form-input" id="gpsLongitude" placeholder="مثال: 46.6753" readonly style="background: #f1f5f9;">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; align-items: center;">
+                            <button type="button" class="btn btn-info" onclick="captureGPSLocation()">
+                                <i class="fas fa-crosshairs"></i> التقاط الموقع تلقائياً
+                            </button>
+                            <button type="button" class="btn btn-outline" onclick="clearGPSLocation()">
+                                <i class="fas fa-times"></i> مسح
+                            </button>
+                            <span id="gpsStatus" style="font-size: 0.9rem; display: none;"></span>
+                        </div>
+                        <div id="gpsMapLink" style="margin-top: 10px;"></div>
                     </div>
                     
                     <div class="form-group full-width">
@@ -1685,22 +1724,38 @@
         // ========================================
         // Modal Functions
         // ========================================
-        function openAddModal() {
+        async function openAddModal() {
             currentVehicleId = null;
             pendingImages = [];
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle" style="margin-left: 10px;"></i>إضافة مركبة جديدة';
             document.getElementById('vehicleForm').reset();
             document.getElementById('imagePreviewContainer').innerHTML = '';
+            
+            // Clear GPS fields
+            document.getElementById('gpsLatitude').value = '';
+            document.getElementById('gpsLongitude').value = '';
+            document.getElementById('gpsStatus').style.display = 'none';
+            document.getElementById('gpsMapLink').innerHTML = '';
+            
+            // Clear evaluator field
+            document.getElementById('evaluatorName').value = '';
+            
+            // Populate dropdowns
+            await populateModalDropdowns();
+            
             document.getElementById('vehicleModal').classList.add('show');
         }
 
-        function editVehicle(id) {
+        async function editVehicle(id) {
             const vehicle = vehicles.find(v => v.id === id);
             if (!vehicle) return;
             
             currentVehicleId = id;
             pendingImages = vehicle.images || [];
             document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit" style="margin-left: 10px;"></i>تعديل المركبة';
+            
+            // Populate dropdowns first
+            await populateModalDropdowns();
             
             // Fill form
             document.getElementById('contractNo').value = vehicle.contractNo || '';
@@ -1721,6 +1776,25 @@
             document.getElementById('operationStatus').value = vehicle.operationStatus || '';
             document.getElementById('vehicleWarehouse').value = vehicle.warehouse || '';
             document.getElementById('notes').value = vehicle.notes || '';
+            
+            // Fill evaluator fields
+            document.getElementById('evaluatorSelect').value = vehicle.evaluatorId || '';
+            document.getElementById('evaluatorName').value = vehicle.evaluatorName || '';
+            
+            // Fill GPS fields
+            document.getElementById('gpsLatitude').value = vehicle.gpsLatitude || '';
+            document.getElementById('gpsLongitude').value = vehicle.gpsLongitude || '';
+            
+            // Show map link if GPS data exists
+            if (vehicle.gpsLatitude && vehicle.gpsLongitude) {
+                document.getElementById('gpsMapLink').innerHTML = `
+                    <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" target="_blank" class="btn btn-success btn-sm" style="margin-top: 10px;">
+                        <i class="fas fa-external-link-alt"></i> فتح الموقع في الخريطة
+                    </a>
+                `;
+            } else {
+                document.getElementById('gpsMapLink').innerHTML = '';
+            }
             
             // Show existing images
             renderImagePreviews();
@@ -1806,10 +1880,31 @@
                         <span><i class="fas fa-warehouse" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.warehouseName || '-'}</span>
                     </div>
                     <div class="view-detail-item">
+                        <label>القائم بالتقييم</label>
+                        <span><i class="fas fa-user-tie" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.evaluatorName || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
                         <label>ملاحظات</label>
                         <span>${vehicle.notes || '-'}</span>
                     </div>
                 </div>
+                
+                ${vehicle.gpsLatitude && vehicle.gpsLongitude ? `
+                    <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px; border: 1px solid #22c55e;">
+                        <h4 style="margin-bottom: 10px; color: #166534;">
+                            <i class="fas fa-map-marker-alt" style="margin-left: 8px;"></i>
+                            الموقع الجغرافي
+                        </h4>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
+                            <span><strong>خط العرض:</strong> ${vehicle.gpsLatitude}</span>
+                            <span><strong>خط الطول:</strong> ${vehicle.gpsLongitude}</span>
+                            <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" target="_blank" class="btn btn-success btn-sm">
+                                <i class="fas fa-external-link-alt"></i> فتح في الخريطة
+                            </a>
+                        </div>
+                    </div>
+                ` : ''}
+                
                 ${vehicle.images && vehicle.images.length > 0 ? `
                     <h4 style="margin-top: 25px; margin-bottom: 15px;">
                         <i class="fas fa-images" style="margin-left: 8px; color: var(--primary);"></i>
@@ -1933,6 +2028,18 @@
             const warehouseId = warehouseSelect.value;
             const warehouseName = warehouseSelect.options[warehouseSelect.selectedIndex]?.text || '';
             
+            // Get evaluator info
+            const evaluatorSelect = document.getElementById('evaluatorSelect');
+            const selectedEvaluator = evaluatorSelect.options[evaluatorSelect.selectedIndex];
+            const evaluatorId = evaluatorSelect.value;
+            const evaluatorNameFromSelect = selectedEvaluator?.dataset?.name || '';
+            const evaluatorNameManual = document.getElementById('evaluatorName').value.trim();
+            const evaluatorEmployeeId = selectedEvaluator?.dataset?.employeeId || '';
+            
+            // Get GPS location
+            const gpsLatitude = document.getElementById('gpsLatitude').value.trim();
+            const gpsLongitude = document.getElementById('gpsLongitude').value.trim();
+            
             const data = {
                 contractNo: document.getElementById('contractNo').value.trim(),
                 customerName: document.getElementById('customerName').value.trim(),
@@ -1952,6 +2059,15 @@
                 operationStatus: document.getElementById('operationStatus').value,
                 warehouse: warehouseId,
                 warehouseName: warehouseName.includes('اختر') ? '' : warehouseName,
+                // Evaluator info
+                evaluatorId: evaluatorId || '',
+                evaluatorName: evaluatorNameManual || evaluatorNameFromSelect || '',
+                evaluatorEmployeeId: evaluatorEmployeeId || '',
+                // GPS info
+                gpsLatitude: gpsLatitude || '',
+                gpsLongitude: gpsLongitude || '',
+                gpsMapUrl: (gpsLatitude && gpsLongitude) ? `https://www.google.com/maps?q=${gpsLatitude},${gpsLongitude}` : '',
+                // Other fields
                 notes: document.getElementById('notes').value.trim(),
                 images: pendingImages,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
@@ -2118,22 +2234,33 @@
                 const wb = XLSX.utils.book_new();
                 
                 // Summary sheet
+                const totalValue = vehicles.reduce((sum, v) => sum + (parseFloat(v.marketValue) || 0), 0);
                 const summaryData = [
                     ['تقرير المركبات المستردة'],
                     [`تاريخ التقرير: ${new Date().toLocaleString('ar-SA')}`],
                     [`إجمالي المركبات: ${vehicles.length}`],
-                    [`إجمالي القيمة: ${vehicles.reduce((sum, v) => sum + (parseFloat(v.marketValue) || 0), 0).toLocaleString()} ر.س`],
+                    [`إجمالي القيمة: ${totalValue.toLocaleString()} ر.س`],
                     [''],
-                    ['⚠️ ملاحظة: روابط الصور متاحة في ورقة "المركبات" - اضغط على الروابط لعرض الصور']
+                    ['💡 ملاحظات مهمة:'],
+                    ['- عمود "Open Map" يحتوي على روابط لفتح موقع المركبة في خرائط Google'],
+                    ['- عمود "Photos Album" يحتوي على روابط لعرض صور المركبة'],
+                    ['- اضغط على الروابط لفتحها في المتصفح']
                 ];
                 
                 const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
                 XLSX.utils.book_append_sheet(wb, summarySheet, 'ملخص');
                 
-                // Vehicles data sheet with images
-                const headers = ['رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود', 'القيمة السوقية', 'التقييم', 'التوصية', 'حالة التشغيل', 'المستودع', 'تاريخ الاسترداد', 'موقع الاسترداد', 'ملاحظات', 'صورة 1', 'صورة 2', 'صورة 3'];
+                // Vehicles data sheet with GPS and images
+                const headers = [
+                    'رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 
+                    'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود',
+                    'القيمة السوقية', 'التقييم', 'التوصية', 'حالة التشغيل', 
+                    'المستودع', 'تاريخ الاسترداد', 'موقع الاسترداد',
+                    'القائم بالتقييم', 'ملاحظات',
+                    'Open Map', 'Photos Album'
+                ];
                 
-                // Get operation status text
+                // Helper functions
                 function getOpStatusText(status) {
                     const statuses = {
                         'working': 'تعمل',
@@ -2144,7 +2271,15 @@
                 }
                 
                 const data = vehicles.map(v => {
-                    const images = v.images || [];
+                    // Generate Google Maps URL
+                    let mapsUrl = '';
+                    if (v.gpsLatitude && v.gpsLongitude) {
+                        mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
+                    }
+                    
+                    // Album URL (first image)
+                    const albumUrl = (v.images && v.images.length > 0) ? v.images[0] : '';
+                    
                     return [
                         v.contractNo || '',
                         v.customerName || '',
@@ -2163,10 +2298,10 @@
                         v.warehouseName || '',
                         v.recoveryDate || '',
                         v.recoveryLocation || '',
+                        v.evaluatorName || '',
                         v.notes || '',
-                        images[0] || '',
-                        images[1] || '',
-                        images[2] || ''
+                        mapsUrl,
+                        albumUrl
                     ];
                 });
                 
@@ -2177,33 +2312,28 @@
                     { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
                     { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
                     { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
-                    { wch: 14 }, { wch: 18 }, { wch: 20 }, { wch: 50 }, { wch: 50 }, { wch: 50 }
+                    { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 25 },
+                    { wch: 50 }, { wch: 50 }
                 ];
                 
-                // Add hyperlinks to image URLs
+                // Add hyperlinks for Maps and Photos columns
                 vehicles.forEach((v, index) => {
-                    const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1-indexed + header)
-                    const images = v.images || [];
+                    const rowNum = index + 2; // +2 because row 1 is headers
                     
-                    // Image 1 - Column S (index 18)
-                    if (images[0]) {
-                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 18 });
-                        if (vehiclesSheet[cellRef]) {
-                            vehiclesSheet[cellRef].l = { Target: images[0], Tooltip: 'انقر لعرض الصورة 1' };
-                        }
-                    }
-                    // Image 2 - Column T (index 19)
-                    if (images[1]) {
+                    // Maps link - Column T (index 19)
+                    if (v.gpsLatitude && v.gpsLongitude) {
+                        const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
                         const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 19 });
                         if (vehiclesSheet[cellRef]) {
-                            vehiclesSheet[cellRef].l = { Target: images[1], Tooltip: 'انقر لعرض الصورة 2' };
+                            vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
                         }
                     }
-                    // Image 3 - Column U (index 20)
-                    if (images[2]) {
+                    
+                    // Photo link - Column U (index 20)
+                    if (v.images && v.images.length > 0 && v.images[0]) {
                         const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 20 });
                         if (vehiclesSheet[cellRef]) {
-                            vehiclesSheet[cellRef].l = { Target: images[2], Tooltip: 'انقر لعرض الصورة 3' };
+                            vehiclesSheet[cellRef].l = { Target: v.images[0], Tooltip: 'انقر لعرض الصور' };
                         }
                     }
                 });
@@ -2219,11 +2349,11 @@
                 XLSX.writeFile(wb, `Vehicles_Export_${date}.xlsx`);
                 
                 hideLoading();
-                showNotification(`تم تصدير ${vehicles.length} مركبة بنجاح مع روابط الصور! 📊`, 'success');
+                showNotification(`تم تصدير ${vehicles.length} مركبة بنجاح مع روابط الخرائط والصور! 📊`, 'success');
             } catch (error) {
                 console.error('Export Error:', error);
                 hideLoading();
-                showNotification('خطأ في التصدير', 'error');
+                showNotification('حدث خطأ أثناء التصدير: ' + error.message, 'error');
             }
         }
         
@@ -2351,6 +2481,121 @@
             console.log(`[${type}] ${message}`);
         }
         
+        // ========================================
+        // GPS Functions
+        // ========================================
+        async function captureGPSLocation() {
+            const statusEl = document.getElementById('gpsStatus');
+            const latInput = document.getElementById('gpsLatitude');
+            const lngInput = document.getElementById('gpsLongitude');
+            const mapLinkDiv = document.getElementById('gpsMapLink');
+            
+            if (statusEl) {
+                statusEl.style.display = 'inline';
+                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحديد الموقع...';
+                statusEl.style.color = '#f59e0b';
+            }
+            
+            if (!navigator.geolocation) {
+                if (statusEl) {
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> الجهاز لا يدعم GPS';
+                    statusEl.style.color = '#ef4444';
+                }
+                showNotification('الجهاز لا يدعم تحديد الموقع', 'error');
+                return;
+            }
+            
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    
+                    if (latInput) latInput.value = lat;
+                    if (lngInput) lngInput.value = lng;
+                    
+                    if (statusEl) {
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> تم تحديد الموقع بنجاح!';
+                        statusEl.style.color = '#10b981';
+                    }
+                    
+                    // Show map link
+                    if (mapLinkDiv) {
+                        mapLinkDiv.innerHTML = `
+                            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-success btn-sm" style="margin-top: 10px;">
+                                <i class="fas fa-external-link-alt"></i> فتح الموقع في الخريطة
+                            </a>
+                        `;
+                    }
+                    
+                    showNotification('تم التقاط الموقع الجغرافي بنجاح', 'success');
+                },
+                (error) => {
+                    let message = 'خطأ في تحديد الموقع';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'تم رفض إذن الوصول للموقع';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'معلومات الموقع غير متاحة';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'انتهى وقت طلب الموقع';
+                            break;
+                    }
+                    
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+                        statusEl.style.color = '#ef4444';
+                    }
+                    
+                    showNotification(message, 'error');
+                },
+                options
+            );
+        }
+        
+        function clearGPSLocation() {
+            document.getElementById('gpsLatitude').value = '';
+            document.getElementById('gpsLongitude').value = '';
+            document.getElementById('gpsStatus').style.display = 'none';
+            document.getElementById('gpsMapLink').innerHTML = '';
+        }
+        
+        // ========================================
+        // Populate Warehouses and Evaluators in Modal
+        // ========================================
+        async function populateModalDropdowns() {
+            // Populate warehouses
+            const warehouseSelect = document.getElementById('vehicleWarehouse');
+            if (warehouseSelect && window.NFWarehouse) {
+                try {
+                    const warehouses = await NFWarehouse.getAll();
+                    warehouseSelect.innerHTML = '<option value="">اختر المستودع...</option>';
+                    warehouses.forEach(wh => {
+                        warehouseSelect.innerHTML += `<option value="${wh.id}" data-name="${wh.name}">${wh.name} - ${wh.location}</option>`;
+                    });
+                } catch (e) {
+                    console.warn('Could not load warehouses:', e);
+                }
+            }
+            
+            // Populate evaluators
+            const evaluatorSelect = document.getElementById('evaluatorSelect');
+            if (evaluatorSelect && window.NFEvaluators) {
+                try {
+                    await NFEvaluators.populateEvaluatorSelector('evaluatorSelect');
+                } catch (e) {
+                    console.warn('Could not load evaluators:', e);
+                }
+            }
+        }
+        
         // Current active section
         let currentSection = 'vehicles';
         
@@ -2425,7 +2670,12 @@
             const container = document.getElementById('warehouseSection');
             container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...</div>';
             
-            if (window.NFWarehouse) {
+            // Use enhanced warehouse if available
+            if (window.NFWarehouseEnhanced && window.NFWarehouse) {
+                const warehouses = await NFWarehouse.getAll();
+                const stats = await NFWarehouse.getStats(vehicles);
+                container.innerHTML = NFWarehouseEnhanced.createWarehousePageHTML(warehouses, stats);
+            } else if (window.NFWarehouse) {
                 const warehouses = await NFWarehouse.getAll();
                 const stats = await NFWarehouse.getStats(vehicles);
                 container.innerHTML = NFWarehouse.createPageHTML(warehouses, stats);
@@ -2533,6 +2783,7 @@
     <script src="js/new-features/advanced-filters.js"></script>
     <script src="js/new-features/dashboard-stats.js"></script>
     <script src="js/new-features/activity-warehouse.js"></script>
+    <script src="js/new-features/enhanced-features.js"></script>
     
     <script>
         // ========================================
