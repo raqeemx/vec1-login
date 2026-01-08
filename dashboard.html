@@ -2033,6 +2033,37 @@
         // ========================================
         // Save Vehicle
         // ========================================
+        
+        // Helper function to upload image to Firebase Storage
+        async function uploadImageToStorage(base64Image, vehicleId, imageIndex) {
+            try {
+                // Check if it's already a URL (not base64)
+                if (base64Image.startsWith('https://') || base64Image.startsWith('http://')) {
+                    return base64Image; // Already uploaded, return as is
+                }
+                
+                // Convert base64 to blob
+                const response = await fetch(base64Image);
+                const blob = await response.blob();
+                
+                // Create unique filename
+                const timestamp = Date.now();
+                const filename = `vehicles/${currentUser.uid}/${vehicleId}/${timestamp}_${imageIndex}.jpg`;
+                
+                // Upload to Firebase Storage
+                const storageRef = storage.ref(filename);
+                await storageRef.put(blob);
+                
+                // Get download URL
+                const downloadURL = await storageRef.getDownloadURL();
+                return downloadURL;
+            } catch (error) {
+                console.error('Image upload error:', error);
+                // Return original base64 if upload fails
+                return base64Image;
+            }
+        }
+        
         async function saveVehicle() {
             // Get warehouse info
             const warehouseSelect = document.getElementById('vehicleWarehouse');
@@ -2080,7 +2111,7 @@
                 gpsMapUrl: (gpsLatitude && gpsLongitude) ? `https://www.google.com/maps?q=${gpsLatitude},${gpsLongitude}` : '',
                 // Other fields
                 notes: document.getElementById('notes').value.trim(),
-                images: pendingImages,
+                images: [], // Will be populated after upload
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp()
             };
             
@@ -2100,34 +2131,47 @@
             
             try {
                 const isEdit = !!currentVehicleId;
+                let docId = currentVehicleId;
                 
-                if (currentVehicleId) {
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('vehicles').doc(currentVehicleId).update(data);
-                    showNotification('تم تحديث المركبة بنجاح', 'success');
-                    
-                    // Log activity
-                    if (window.NFActivity) {
-                        window.NFActivity.log('VEHICLE_UPDATED', {
-                            vehicleName: `${data.make} ${data.model} ${data.year}`,
-                            contractNo: data.contractNo
-                        });
-                    }
-                } else {
+                // If new vehicle, create document first to get ID
+                if (!currentVehicleId) {
                     data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    await db.collection('users').doc(currentUser.uid)
+                    const docRef = await db.collection('users').doc(currentUser.uid)
                         .collection('vehicles').add(data);
-                    showNotification('تم إضافة المركبة بنجاح', 'success');
-                    
-                    // Log activity
-                    if (window.NFActivity) {
-                        window.NFActivity.log('VEHICLE_ADDED', {
-                            vehicleName: `${data.make} ${data.model} ${data.year}`,
-                            contractNo: data.contractNo
-                        });
-                    }
+                    docId = docRef.id;
                 }
                 
+                // Upload images to Firebase Storage if there are any
+                if (pendingImages.length > 0) {
+                    showLoading('جاري رفع الصور إلى السحابة...');
+                    const uploadedImages = [];
+                    
+                    for (let i = 0; i < pendingImages.length; i++) {
+                        const imageUrl = await uploadImageToStorage(pendingImages[i], docId, i);
+                        uploadedImages.push(imageUrl);
+                    }
+                    
+                    data.images = uploadedImages;
+                }
+                
+                // Update the document with image URLs
+                if (isEdit || pendingImages.length > 0) {
+                    await db.collection('users').doc(currentUser.uid)
+                        .collection('vehicles').doc(docId).update({
+                            ...data,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        });
+                }
+                
+                // Log activity
+                if (window.NFActivity) {
+                    window.NFActivity.log(isEdit ? 'VEHICLE_UPDATED' : 'VEHICLE_ADDED', {
+                        vehicleName: `${data.make} ${data.model} ${data.year}`,
+                        contractNo: data.contractNo
+                    });
+                }
+                
+                showNotification(isEdit ? 'تم تحديث المركبة بنجاح' : 'تم إضافة المركبة بنجاح', 'success');
                 closeModal();
                 hideLoading();
             } catch (error) {
@@ -2289,8 +2333,9 @@
                     [''],
                     ['💡 ملاحظات مهمة:'],
                     ['', '- عمود "Open Map" يحتوي على روابط لفتح موقع المركبة في خرائط Google'],
-                    ['', '- عمود "Photos Album" يحتوي على روابط لعرض صور المركبة'],
-                    ['', '- اضغط على الروابط لفتحها في المتصفح']
+                    ['', '- عمود "Photos Album" يحتوي على رابط الصورة الأولى للمركبة'],
+                    ['', '- اضغط على الروابط لفتحها مباشرة في المتصفح'],
+                    ['', '- الصور المرفوعة حديثاً ستحتوي على روابط قابلة للنقر']
                 ];
                 
                 const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -2314,10 +2359,19 @@
                         mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
                     }
                     
-                    // Album URL - generate album page URL
-                    let albumUrl = '';
-                    if (v.images && v.images.length > 0) {
-                        albumUrl = `album.html?id=${v.id}`;
+                    // Photo URL - use first image directly (Firebase URL or data URL)
+                    // This ensures the link is clickable and opens the image directly
+                    let photoUrl = '';
+                    if (v.images && v.images.length > 0 && v.images[0]) {
+                        // If it's a Firebase URL (starts with https://), use it directly
+                        // If it's a data URL (base64), we'll show count instead
+                        const firstImage = v.images[0];
+                        if (firstImage.startsWith('https://') || firstImage.startsWith('http://')) {
+                            photoUrl = firstImage;
+                        } else {
+                            // For base64 images, show image count info
+                            photoUrl = `${v.images.length} صورة مرفقة`;
+                        }
                     }
                     
                     return [
@@ -2342,7 +2396,7 @@
                         v.evaluatorName || '',
                         v.notes || '',
                         mapsUrl,
-                        albumUrl
+                        photoUrl
                     ];
                 });
                 
@@ -2371,12 +2425,15 @@
                         }
                     }
                     
-                    // Photo link - Column V (index 21)
-                    if (v.images && v.images.length > 0) {
-                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 21 });
-                        if (vehiclesSheet[cellRef]) {
-                            const albumUrl = `album.html?id=${v.id}`;
-                            vehiclesSheet[cellRef].l = { Target: albumUrl, Tooltip: 'انقر لعرض ألبوم الصور' };
+                    // Photo link - Column V (index 21) - Only for web URLs
+                    if (v.images && v.images.length > 0 && v.images[0]) {
+                        const firstImage = v.images[0];
+                        // Only add hyperlink if it's a valid web URL (not base64)
+                        if (firstImage.startsWith('https://') || firstImage.startsWith('http://')) {
+                            const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 21 });
+                            if (vehiclesSheet[cellRef]) {
+                                vehiclesSheet[cellRef].l = { Target: firstImage, Tooltip: 'انقر لعرض الصورة' };
+                            }
                         }
                     }
                 });
