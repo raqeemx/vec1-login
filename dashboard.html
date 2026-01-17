@@ -1183,30 +1183,30 @@
                 <form id="vehicleForm">
                     <div class="form-row">
                         <div class="form-group">
-                            <label><i class="fas fa-file-contract" style="margin-left: 5px;"></i>رقم العقد *</label>
-                            <input type="text" class="form-input" id="contractNo" required placeholder="مثال: CNT-2024-001">
+                            <label><i class="fas fa-file-contract" style="margin-left: 5px;"></i>رقم العقد</label>
+                            <input type="text" class="form-input" id="contractNo" placeholder="مثال: CNT-2024-001">
                         </div>
                         <div class="form-group">
-                            <label><i class="fas fa-user" style="margin-left: 5px;"></i>اسم العميل *</label>
-                            <input type="text" class="form-input" id="customerName" required placeholder="الاسم الكامل">
-                        </div>
-                    </div>
-                    
-                    <div class="form-row">
-                        <div class="form-group">
-                            <label><i class="fas fa-industry" style="margin-left: 5px;"></i>الصانع *</label>
-                            <input type="text" class="form-input" id="make" required placeholder="مثال: Toyota">
-                        </div>
-                        <div class="form-group">
-                            <label><i class="fas fa-car-side" style="margin-left: 5px;"></i>الموديل *</label>
-                            <input type="text" class="form-input" id="model" required placeholder="مثال: Camry">
+                            <label><i class="fas fa-user" style="margin-left: 5px;"></i>اسم العميل</label>
+                            <input type="text" class="form-input" id="customerName" placeholder="الاسم الكامل">
                         </div>
                     </div>
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label><i class="fas fa-calendar" style="margin-left: 5px;"></i>السنة *</label>
-                            <input type="number" class="form-input" id="year" required min="1990" max="2030" placeholder="2024">
+                            <label><i class="fas fa-industry" style="margin-left: 5px;"></i>الصانع</label>
+                            <input type="text" class="form-input" id="make" placeholder="مثال: Toyota">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-car-side" style="margin-left: 5px;"></i>الموديل</label>
+                            <input type="text" class="form-input" id="model" placeholder="مثال: Camry">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-calendar" style="margin-left: 5px;"></i>السنة</label>
+                            <input type="number" class="form-input" id="year" min="1990" max="2030" placeholder="2024">
                         </div>
                         <div class="form-group">
                             <label><i class="fas fa-barcode" style="margin-left: 5px;"></i>رقم الشاصي (VIN)</label>
@@ -2137,6 +2137,32 @@
             }
         }
         
+        // Helper function to safely parse numeric values
+        function parseNumericValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? null : parsed;
+        }
+        
+        // Helper function to safely parse integer values
+        function parseIntValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            const parsed = parseInt(value, 10);
+            return isNaN(parsed) ? null : parsed;
+        }
+        
+        // Helper function to clean empty strings to null
+        function cleanValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            return typeof value === 'string' ? value.trim() : value;
+        }
+        
         async function saveVehicle() {
             // Ensure Supabase client is initialized
             if (!supabaseClient) {
@@ -2161,48 +2187,54 @@
             const gpsLatitude = document.getElementById('gpsLatitude').value.trim();
             const gpsLongitude = document.getElementById('gpsLongitude').value.trim();
             
+            // Get form values
+            const yearValue = document.getElementById('year').value;
+            const odometerValue = document.getElementById('odometer').value;
+            const marketValueRaw = document.getElementById('marketValue').value;
+            
             const data = {
-                contractNo: document.getElementById('contractNo').value.trim(),
-                customerName: document.getElementById('customerName').value.trim(),
-                make: document.getElementById('make').value.trim(),
-                model: document.getElementById('model').value.trim(),
-                year: document.getElementById('year').value,
-                vin: document.getElementById('vin').value.trim().toUpperCase(),
-                plateNo: document.getElementById('plateNo').value.trim(),
-                odometer: document.getElementById('odometer').value,
-                color: document.getElementById('color').value.trim(),
-                fuelType: document.getElementById('fuelType').value,
-                marketValue: document.getElementById('marketValue').value,
-                overallRating: document.getElementById('overallRating').value,
-                recoveryDate: document.getElementById('recoveryDate').value,
-                recoveryLocation: document.getElementById('recoveryLocation').value.trim(),
-                recommendation: document.getElementById('recommendation').value,
-                operationStatus: document.getElementById('operationStatus').value,
-                warehouse: warehouseId,
-                warehouseName: warehouseName.includes('اختر') ? '' : warehouseName,
+                contractNo: cleanValue(document.getElementById('contractNo').value),
+                customerName: cleanValue(document.getElementById('customerName').value),
+                make: cleanValue(document.getElementById('make').value),
+                model: cleanValue(document.getElementById('model').value),
+                year: parseIntValue(yearValue),
+                vin: cleanValue(document.getElementById('vin').value)?.toUpperCase() || null,
+                plateNo: cleanValue(document.getElementById('plateNo').value),
+                odometer: parseIntValue(odometerValue),
+                color: cleanValue(document.getElementById('color').value),
+                fuelType: cleanValue(document.getElementById('fuelType').value),
+                marketValue: parseNumericValue(marketValueRaw),
+                overallRating: cleanValue(document.getElementById('overallRating').value) || 'good',
+                recoveryDate: cleanValue(document.getElementById('recoveryDate').value),
+                recoveryLocation: cleanValue(document.getElementById('recoveryLocation').value),
+                recommendation: cleanValue(document.getElementById('recommendation').value),
+                operationStatus: cleanValue(document.getElementById('operationStatus').value),
+                warehouse: cleanValue(warehouseId),
+                warehouseName: warehouseName.includes('اختر') ? null : cleanValue(warehouseName),
                 // Evaluator info
-                evaluatorId: evaluatorId || '',
-                evaluatorName: evaluatorNameManual || evaluatorNameFromSelect || '',
-                evaluatorEmployeeId: evaluatorEmployeeId || '',
+                evaluatorId: cleanValue(evaluatorId),
+                evaluatorName: cleanValue(evaluatorNameManual || evaluatorNameFromSelect),
+                evaluatorEmployeeId: cleanValue(evaluatorEmployeeId),
                 // GPS info
-                gpsLatitude: gpsLatitude || '',
-                gpsLongitude: gpsLongitude || '',
-                gpsMapUrl: (gpsLatitude && gpsLongitude) ? `https://www.google.com/maps?q=${gpsLatitude},${gpsLongitude}` : '',
+                gpsLatitude: cleanValue(gpsLatitude),
+                gpsLongitude: cleanValue(gpsLongitude),
+                gpsMapUrl: (gpsLatitude && gpsLongitude) ? `https://www.google.com/maps?q=${gpsLatitude},${gpsLongitude}` : null,
                 // Other fields
-                notes: document.getElementById('notes').value.trim(),
+                notes: cleanValue(document.getElementById('notes').value),
                 images: [], // Will be populated after upload
                 updated_at: new Date().toISOString()
             };
             
-            // Validation
-            if (!data.contractNo || !data.customerName || !data.make || !data.model || !data.year) {
-                showNotification('يرجى ملء جميع الحقول المطلوبة', 'warning');
+            // Minimal validation - only check for basic required fields
+            // Allow saving incomplete data as per user request
+            if (!data.make && !data.model && !data.contractNo && !data.customerName) {
+                showNotification('يرجى ملء حقل واحد على الأقل (الصانع، الموديل، رقم العقد، أو اسم العميل)', 'warning');
                 return;
             }
             
-            // VIN validation
+            // VIN validation - only if provided
             if (data.vin && data.vin.length !== 17) {
-                showNotification('رقم الشاصي (VIN) يجب أن يكون 17 حرف', 'warning');
+                showNotification('رقم الشاصي (VIN) يجب أن يكون 17 حرف أو اتركه فارغاً', 'warning');
                 return;
             }
             
@@ -2655,14 +2687,48 @@
             showLoading(`جاري استيراد ${vehiclesList.length} مركبة...`);
             
             try {
-                // Prepare vehicles for insert
-                const vehiclesToInsert = vehiclesList.map(vehicle => ({
-                    ...vehicle,
-                    user_id: currentUser.id,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    deleted: false
-                }));
+                // Prepare vehicles for insert - clean numeric values
+                const vehiclesToInsert = vehiclesList.map(vehicle => {
+                    // Remove any existing id to let Supabase generate new ones
+                    const { id, ...vehicleData } = vehicle;
+                    
+                    return {
+                        ...vehicleData,
+                        // Clean numeric fields
+                        year: parseIntValue(vehicle.year),
+                        odometer: parseIntValue(vehicle.odometer),
+                        marketValue: parseNumericValue(vehicle.marketValue),
+                        // Clean string fields
+                        contractNo: cleanValue(vehicle.contractNo),
+                        customerName: cleanValue(vehicle.customerName),
+                        make: cleanValue(vehicle.make),
+                        model: cleanValue(vehicle.model),
+                        vin: cleanValue(vehicle.vin),
+                        plateNo: cleanValue(vehicle.plateNo),
+                        color: cleanValue(vehicle.color),
+                        fuelType: cleanValue(vehicle.fuelType),
+                        overallRating: cleanValue(vehicle.overallRating) || 'good',
+                        recoveryDate: cleanValue(vehicle.recoveryDate),
+                        recoveryLocation: cleanValue(vehicle.recoveryLocation),
+                        recommendation: cleanValue(vehicle.recommendation),
+                        operationStatus: cleanValue(vehicle.operationStatus),
+                        warehouse: cleanValue(vehicle.warehouse),
+                        warehouseName: cleanValue(vehicle.warehouseName),
+                        evaluatorId: cleanValue(vehicle.evaluatorId),
+                        evaluatorName: cleanValue(vehicle.evaluatorName),
+                        evaluatorEmployeeId: cleanValue(vehicle.evaluatorEmployeeId),
+                        gpsLatitude: cleanValue(vehicle.gpsLatitude),
+                        gpsLongitude: cleanValue(vehicle.gpsLongitude),
+                        gpsMapUrl: cleanValue(vehicle.gpsMapUrl),
+                        notes: cleanValue(vehicle.notes),
+                        images: Array.isArray(vehicle.images) ? vehicle.images : [],
+                        // Set user and timestamps
+                        user_id: currentUser.id,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        deleted: false
+                    };
+                });
                 
                 const { error } = await supabaseClient
                     .from('vehicles')
@@ -3163,13 +3229,13 @@
     </script>
 
     <!-- New Features JS -->
-    <script src="js/new-features/dark-mode-toggle.js"></script>
-    <script src="js/new-features/enhanced-notifications.js"></script>
-    <script src="js/new-features/form-validator.js"></script>
-    <script src="js/new-features/advanced-filters.js"></script>
-    <script src="js/new-features/dashboard-stats.js"></script>
-    <script src="js/new-features/activity-warehouse.js"></script>
-    <script src="js/new-features/enhanced-features.js"></script>
+    <script src="js/dark-mode-toggle.js"></script>
+    <script src="js/enhanced-notifications.js"></script>
+    <script src="js/form-validator.js"></script>
+    <script src="js/advanced-filters.js"></script>
+    <script src="js/dashboard-stats.js"></script>
+    <script src="js/activity-warehouse.js"></script>
+    <script src="js/enhanced-features.js"></script>
     
     <script>
         // ========================================

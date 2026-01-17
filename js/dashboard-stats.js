@@ -81,8 +81,10 @@ window.NFStats = (function() {
             }
             
             // This month and last month count
-            if (v.createdAt) {
-                const date = v.createdAt.toDate ? v.createdAt.toDate() : new Date(v.createdAt);
+            // Support both createdAt (Firebase) and created_at (Supabase)
+            const createdAtValue = v.createdAt || v.created_at;
+            if (createdAtValue) {
+                const date = createdAtValue.toDate ? createdAtValue.toDate() : new Date(createdAtValue);
                 
                 if (date.getMonth() === thisMonth && date.getFullYear() === thisYear) {
                     stats.thisMonth++;
@@ -113,10 +115,13 @@ window.NFStats = (function() {
             .slice(0, 5);
         
         // Recent vehicles
+        // Support both createdAt (Firebase) and created_at (Supabase)
         stats.recentVehicles = [...vehicles]
             .sort((a, b) => {
-                const dateA = a.createdAt?.toDate ? a.createdAt.toDate() : new Date(a.createdAt || 0);
-                const dateB = b.createdAt?.toDate ? b.createdAt.toDate() : new Date(b.createdAt || 0);
+                const createdAtA = a.createdAt || a.created_at;
+                const createdAtB = b.createdAt || b.created_at;
+                const dateA = createdAtA?.toDate ? createdAtA.toDate() : new Date(createdAtA || 0);
+                const dateB = createdAtB?.toDate ? createdAtB.toDate() : new Date(createdAtB || 0);
                 return dateB - dateA;
             })
             .slice(0, 5);

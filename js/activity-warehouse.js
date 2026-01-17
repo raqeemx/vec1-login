@@ -26,8 +26,30 @@ window.NFActivity = (function() {
         LOGOUT: { icon: 'fa-sign-out-alt', color: 'warning', label: 'تسجيل خروج' }
     };
     
-    // Log activity to Firestore
+    // Log activity - Support both Firebase and Supabase
     async function logActivity(type, details = {}) {
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const activity = {
+                    activity_type: type,
+                    details: details,
+                    user_id: window.currentUser.id,
+                    created_at: new Date().toISOString()
+                };
+                
+                await window.supabaseClient
+                    .from('activity_logs')
+                    .insert(activity);
+                    
+                console.log('Activity logged (Supabase):', type);
+                return;
+            } catch (error) {
+                console.error('Error logging activity to Supabase:', error);
+            }
+        }
+        
+        // Fallback to Firebase
         if (!window.currentUser || !window.db) return;
         
         try {
@@ -45,14 +67,39 @@ window.NFActivity = (function() {
                 .collection('activities')
                 .add(activity);
                 
-            console.log('Activity logged:', type);
+            console.log('Activity logged (Firebase):', type);
         } catch (error) {
             console.error('Error logging activity:', error);
         }
     }
     
-    // Get recent activities
+    // Get recent activities - Support both Firebase and Supabase
     async function getActivities(limit = 50) {
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('activity_logs')
+                    .select('*')
+                    .eq('user_id', window.currentUser.id)
+                    .order('created_at', { ascending: false })
+                    .limit(limit);
+                
+                if (error) throw error;
+                
+                // Transform data to match expected format
+                return (data || []).map(item => ({
+                    id: item.id,
+                    type: item.activity_type,
+                    details: item.details,
+                    timestamp: item.created_at
+                }));
+            } catch (error) {
+                console.error('Error fetching activities from Supabase:', error);
+            }
+        }
+        
+        // Fallback to Firebase
         if (!window.currentUser || !window.db) return [];
         
         try {
@@ -225,8 +272,32 @@ window.NFWarehouse = (function() {
         { id: 'west', name: 'المستودع الغربي', location: 'جدة', capacity: 75 }
     ];
     
-    // Get warehouses
+    // Get warehouses - Support both Firebase and Supabase
     async function getWarehouses() {
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('warehouses')
+                    .select('*')
+                    .eq('user_id', window.currentUser.id)
+                    .order('name');
+                
+                if (error) throw error;
+                
+                if (!data || data.length === 0) {
+                    // Return defaults but don't auto-create in Supabase
+                    return DEFAULT_WAREHOUSES;
+                }
+                
+                return data;
+            } catch (error) {
+                console.error('Error fetching warehouses from Supabase:', error);
+                return DEFAULT_WAREHOUSES;
+            }
+        }
+        
+        // Fallback to Firebase
         if (!window.currentUser || !window.db) return DEFAULT_WAREHOUSES;
         
         try {
@@ -257,8 +328,32 @@ window.NFWarehouse = (function() {
         }
     }
     
-    // Add warehouse
+    // Add warehouse - Support both Firebase and Supabase
     async function addWarehouse(warehouse) {
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('warehouses')
+                    .insert({
+                        ...warehouse,
+                        user_id: window.currentUser.id,
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (error) throw error;
+                
+                NFActivity.log('WAREHOUSE_TRANSFER', { warehouse: warehouse.name, action: 'إضافة مستودع' });
+                return data.id;
+            } catch (error) {
+                console.error('Error adding warehouse to Supabase:', error);
+                return null;
+            }
+        }
+        
+        // Fallback to Firebase
         if (!window.currentUser || !window.db) return null;
         
         try {
@@ -290,8 +385,36 @@ window.NFWarehouse = (function() {
         return stats;
     }
     
-    // Transfer vehicle to warehouse
+    // Transfer vehicle to warehouse - Support both Firebase and Supabase
     async function transferVehicle(vehicleId, warehouseId, warehouseName) {
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const { error } = await window.supabaseClient
+                    .from('vehicles')
+                    .update({
+                        warehouse: warehouseId,
+                        warehouseName: warehouseName,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', vehicleId)
+                    .eq('user_id', window.currentUser.id);
+                
+                if (error) throw error;
+                
+                NFActivity.log('WAREHOUSE_TRANSFER', { 
+                    vehicleId, 
+                    warehouse: warehouseName 
+                });
+                
+                return true;
+            } catch (error) {
+                console.error('Error transferring vehicle (Supabase):', error);
+                return false;
+            }
+        }
+        
+        // Fallback to Firebase
         if (!window.currentUser || !window.db) return false;
         
         try {

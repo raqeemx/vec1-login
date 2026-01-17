@@ -148,16 +148,25 @@ window.NFFilters = (function() {
             
             // Apply sort
             filtered.sort((a, b) => {
-                let aVal = a[this.sortBy];
-                let bVal = b[this.sortBy];
+                // Support both createdAt (Firebase) and created_at (Supabase)
+                let aVal, bVal;
+                if (this.sortBy === 'createdAt' || this.sortBy === 'created_at') {
+                    aVal = a.createdAt || a.created_at;
+                    bVal = b.createdAt || b.created_at;
+                } else {
+                    aVal = a[this.sortBy];
+                    bVal = b[this.sortBy];
+                }
                 
                 // Handle null/undefined values
                 if (aVal === null || aVal === undefined) aVal = '';
                 if (bVal === null || bVal === undefined) bVal = '';
                 
-                // Handle dates (Firebase timestamps)
+                // Handle dates (Firebase timestamps and ISO strings)
                 if (aVal && aVal.toDate) aVal = aVal.toDate();
+                else if (typeof aVal === 'string' && aVal.includes('T')) aVal = new Date(aVal);
                 if (bVal && bVal.toDate) bVal = bVal.toDate();
+                else if (typeof bVal === 'string' && bVal.includes('T')) bVal = new Date(bVal);
                 
                 // Handle numbers
                 if (typeof aVal === 'string' && !isNaN(aVal) && aVal !== '') aVal = parseFloat(aVal);
