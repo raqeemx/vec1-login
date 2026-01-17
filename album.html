@@ -11,10 +11,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Config -->
+    <script src="js/supabase-config.js"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -505,25 +506,11 @@
     </div>
     
     <script>
-        // Firebase Configuration
-        const firebaseConfig = {
-            apiKey: "AIzaSyA7B27LIH9FPZAsMKr5lvm2AIa3ZkZNOUo",
-            authDomain: "vec-login-58dea.firebaseapp.com",
-            projectId: "vec-login-58dea",
-            storageBucket: "vec-login-58dea.firebasestorage.app",
-            messagingSenderId: "651347381212",
-            appId: "1:651347381212:web:dc7eba2bbf69532e13dd19",
-            measurementId: "G-P9Q2KBSNQH"
-        };
-        
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        
         // Global variables
         let currentImages = [];
         let currentImageIndex = 0;
         let vehicleData = null;
+        let supabaseClient = null;
         
         // Get vehicle ID from URL
         function getVehicleId() {
@@ -531,38 +518,65 @@
             return params.get('id');
         }
         
-        // Auth check and load data
-        auth.onAuthStateChanged(async (user) => {
-            if (!user) {
-                showError('يجب تسجيل الدخول أولاً', 'لم يتم العثور على جلسة مستخدم نشطة');
+        // Initialize Supabase and check auth
+        document.addEventListener('DOMContentLoaded', async () => {
+            // Initialize Supabase
+            if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase client initialized in album page');
+            } else {
+                showError('خطأ في تحميل النظام', 'يرجى تحديث الصفحة');
                 return;
             }
             
-            const vehicleId = getVehicleId();
-            if (!vehicleId) {
-                showError('معرف المركبة غير موجود', 'يرجى الرجوع للوحة التحكم واختيار مركبة');
-                return;
-            }
-            
+            // Check auth
             try {
-                const doc = await db.collection('users')
-                    .doc(user.uid)
-                    .collection('vehicles')
-                    .doc(vehicleId)
-                    .get();
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 
-                if (!doc.exists) {
+                if (!session || !session.user) {
+                    showError('يجب تسجيل الدخول أولاً', 'لم يتم العثور على جلسة مستخدم نشطة');
+                    return;
+                }
+                
+                const vehicleId = getVehicleId();
+                if (!vehicleId) {
+                    showError('معرف المركبة غير موجود', 'يرجى الرجوع للوحة التحكم واختيار مركبة');
+                    return;
+                }
+                
+                // Load vehicle data
+                await loadVehicle(session.user.id, vehicleId);
+                
+            } catch (error) {
+                console.error('Error:', error);
+                showError('خطأ في التحميل', error.message);
+            }
+        });
+        
+        // Load vehicle data
+        async function loadVehicle(userId, vehicleId) {
+            try {
+                const { data, error } = await supabaseClient
+                    .from('vehicles')
+                    .select('*')
+                    .eq('id', vehicleId)
+                    .eq('user_id', userId)
+                    .single();
+                
+                if (error) throw error;
+                
+                if (!data) {
                     showError('المركبة غير موجودة', 'لم يتم العثور على بيانات هذه المركبة');
                     return;
                 }
                 
-                vehicleData = { id: doc.id, ...doc.data() };
+                vehicleData = data;
                 displayAlbum(vehicleData);
             } catch (error) {
                 console.error('Error loading vehicle:', error);
                 showError('خطأ في التحميل', error.message);
             }
-        });
+        }
         
         // Display album
         function displayAlbum(vehicle) {
@@ -613,7 +627,8 @@
             
             // Stats
             document.getElementById('photoCount').textContent = vehicle.images.length;
-            document.getElementById('albumDate').textContent = new Date().toLocaleDateString('ar-SA');
+            const updateDate = vehicle.updated_at ? new Date(vehicle.updated_at).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA');
+            document.getElementById('albumDate').textContent = updateDate;
             
             // Album grid
             const grid = document.getElementById('albumGrid');

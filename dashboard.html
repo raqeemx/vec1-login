@@ -24,11 +24,11 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     
-    <!-- Firebase SDK -->
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-auth-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Config -->
+    <script src="js/supabase-config.js"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1436,22 +1436,21 @@
 
     <script>
         // ========================================
-        // Firebase Configuration
+        // Supabase Client Initialization
         // ========================================
-        const firebaseConfig = {
-            apiKey: "AIzaSyA7B27LIH9FPZAsMKr5lvm2AIa3ZkZNOUo",
-            authDomain: "vec-login-58dea.firebaseapp.com",
-            projectId: "vec-login-58dea",
-            storageBucket: "vec-login-58dea.firebasestorage.app",
-            messagingSenderId: "651347381212",
-            appId: "1:651347381212:web:dc7eba2bbf69532e13dd19",
-            measurementId: "G-P9Q2KBSNQH"
-        };
-
-        firebase.initializeApp(firebaseConfig);
-        const auth = firebase.auth();
-        const db = firebase.firestore();
-        const storage = firebase.storage();
+        let supabaseClient = null;
+        
+        // Initialize Supabase on page load
+        function initializeSupabase() {
+            if (typeof window.supabase !== 'undefined' && typeof window.supabase.createClient === 'function') {
+                supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+                console.log('✅ Supabase client initialized in dashboard');
+                return true;
+            } else {
+                console.error('❌ Supabase library not loaded');
+                return false;
+            }
+        }
 
         // ========================================
         // Global Variables
@@ -1464,55 +1463,86 @@
         let confirmCallback = null;
 
         // ========================================
-        // Auth Check
+        // Auth Check - Supabase
         // ========================================
         let authTimeout = null;
+        let authSubscription = null;
         
-        auth.onAuthStateChanged(async (user) => {
+        // Initialize and check auth on page load
+        document.addEventListener('DOMContentLoaded', async () => {
             const loader = document.getElementById('authCheckLoader');
             const main = document.getElementById('mainContent');
             
-            if (authTimeout) {
-                clearTimeout(authTimeout);
-                authTimeout = null;
+            // Initialize Supabase
+            if (!initializeSupabase()) {
+                loader.innerHTML = '<div class="loader-content"><p style="color: white;">خطأ في تحميل النظام. يرجى تحديث الصفحة.</p></div>';
+                return;
             }
             
-            if (user) {
-                console.log('User authenticated:', user.email);
-                currentUser = user;
-                loader.style.display = 'none';
-                main.style.display = 'block';
+            // Set auth timeout
+            authTimeout = setTimeout(() => {
+                console.log('Auth check timeout - redirecting to login');
+                window.location.replace('index.html');
+            }, 10000);
+            
+            try {
+                // Check current session
+                const { data: { session } } = await supabaseClient.auth.getSession();
                 
-                updateUserUI(user);
-                setupRealtimeSync();
-                setupConnectionMonitor();
-                await loadVehicles();
-            } else {
-                console.log('User not authenticated, redirecting to login...');
+                if (authTimeout) {
+                    clearTimeout(authTimeout);
+                    authTimeout = null;
+                }
+                
+                if (session && session.user) {
+                    console.log('User authenticated:', session.user.email);
+                    currentUser = session.user;
+                    loader.style.display = 'none';
+                    main.style.display = 'block';
+                    
+                    updateUserUI(session.user);
+                    setupRealtimeSync();
+                    setupConnectionMonitor();
+                    await loadVehicles();
+                } else {
+                    console.log('User not authenticated, redirecting to login...');
+                    window.location.replace('index.html');
+                }
+                
+                // Listen for auth state changes
+                authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    console.log('Auth state changed:', event);
+                    if (event === 'SIGNED_OUT' || !session) {
+                        window.location.replace('index.html');
+                    } else if (event === 'SIGNED_IN' && session) {
+                        currentUser = session.user;
+                        updateUserUI(session.user);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Auth check error:', error);
+                if (authTimeout) clearTimeout(authTimeout);
                 window.location.replace('index.html');
             }
         });
-        
-        authTimeout = setTimeout(() => {
-            console.log('Auth check timeout - redirecting to login');
-            window.location.replace('index.html');
-        }, 10000);
 
         // ========================================
-        // User UI
+        // User UI - Supabase
         // ========================================
         function updateUserUI(user) {
-            const name = user.displayName || 'المستخدم';
+            const name = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'المستخدم';
             const email = user.email || '';
             const initials = getInitials(name);
+            const photoURL = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
             
             document.getElementById('sidebarUserName').textContent = name;
             document.getElementById('sidebarUserEmail').textContent = email;
             document.getElementById('profileName').textContent = name.split(' ')[0];
             
             const avatarEl = document.getElementById('sidebarAvatar');
-            if (user.photoURL) {
-                avatarEl.innerHTML = `<img src="${user.photoURL}" alt="${name}">`;
+            if (photoURL) {
+                avatarEl.innerHTML = `<img src="${photoURL}" alt="${name}">`;
             } else {
                 document.getElementById('sidebarInitials').textContent = initials;
             }
@@ -1531,34 +1561,41 @@
         }
 
         // ========================================
-        // Real-time Sync
+        // Real-time Sync - Supabase
         // ========================================
         function setupRealtimeSync() {
-            if (!currentUser) return;
-            if (unsubscribeSnapshot) unsubscribeSnapshot();
+            if (!currentUser || !supabaseClient) return;
+            if (unsubscribeSnapshot) {
+                supabaseClient.removeChannel(unsubscribeSnapshot);
+            }
             
             updateConnectionStatus('syncing', 'جاري المزامنة...');
             
-            unsubscribeSnapshot = db.collection('users')
-                .doc(currentUser.uid)
-                .collection('vehicles')
-                .orderBy('createdAt', 'desc')
-                .onSnapshot(
-                    (snapshot) => {
-                        vehicles = [];
-                        snapshot.forEach(doc => {
-                            vehicles.push({ id: doc.id, ...doc.data() });
-                        });
-                        renderVehicles();
-                        updateStats();
-                        updateConnectionStatus('online', 'متصل ومتزامن');
+            // Subscribe to real-time changes
+            unsubscribeSnapshot = supabaseClient
+                .channel('vehicles_changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'vehicles',
+                        filter: `user_id=eq.${currentUser.id}`
                     },
-                    (error) => {
-                        console.error('Sync Error:', error);
-                        updateConnectionStatus('offline', 'غير متصل');
-                        showNotification('خطأ في المزامنة: ' + error.message, 'error');
+                    async (payload) => {
+                        console.log('Real-time update:', payload);
+                        // Reload vehicles on any change
+                        await loadVehicles();
+                        updateConnectionStatus('online', 'متصل ومتزامن');
                     }
-                );
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        updateConnectionStatus('online', 'متصل ومتزامن');
+                    } else if (status === 'CHANNEL_ERROR') {
+                        updateConnectionStatus('offline', 'غير متصل');
+                    }
+                });
         }
         
         // ========================================
@@ -1594,22 +1631,22 @@
         }
 
         // ========================================
-        // Load Vehicles
+        // Load Vehicles - Supabase
         // ========================================
         async function loadVehicles() {
             showLoading('جاري تحميل البيانات...');
             
             try {
-                const snapshot = await db.collection('users')
-                    .doc(currentUser.uid)
-                    .collection('vehicles')
-                    .orderBy('createdAt', 'desc')
-                    .get();
+                const { data, error } = await supabaseClient
+                    .from('vehicles')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('deleted', false)
+                    .order('created_at', { ascending: false });
                 
-                vehicles = [];
-                snapshot.forEach(doc => {
-                    vehicles.push({ id: doc.id, ...doc.data() });
-                });
+                if (error) throw error;
+                
+                vehicles = data || [];
                 
                 renderVehicles();
                 updateStats();
@@ -1617,7 +1654,7 @@
             } catch (error) {
                 console.error('Load Error:', error);
                 hideLoading();
-                showNotification('خطأ في تحميل البيانات', 'error');
+                showNotification('خطأ في تحميل البيانات: ' + error.message, 'error');
             }
         }
 
@@ -2034,7 +2071,7 @@
         // Save Vehicle
         // ========================================
         
-        // Helper function to upload image to Firebase Storage
+        // Helper function to upload image to Supabase Storage
         async function uploadImageToStorage(base64Image, vehicleId, imageIndex) {
             try {
                 // Check if it's already a URL (not base64)
@@ -2048,15 +2085,29 @@
                 
                 // Create unique filename
                 const timestamp = Date.now();
-                const filename = `vehicles/${currentUser.uid}/${vehicleId}/${timestamp}_${imageIndex}.jpg`;
+                const fileExt = 'jpg';
+                const filename = `${currentUser.id}/${vehicleId}/${timestamp}_${imageIndex}.${fileExt}`;
                 
-                // Upload to Firebase Storage
-                const storageRef = storage.ref(filename);
-                await storageRef.put(blob);
+                // Upload to Supabase Storage
+                const { data, error } = await supabaseClient.storage
+                    .from('vehicle-images')
+                    .upload(filename, blob, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
                 
-                // Get download URL
-                const downloadURL = await storageRef.getDownloadURL();
-                return downloadURL;
+                if (error) {
+                    console.error('Upload error:', error);
+                    // If storage bucket doesn't exist, return base64
+                    return base64Image;
+                }
+                
+                // Get public URL
+                const { data: urlData } = supabaseClient.storage
+                    .from('vehicle-images')
+                    .getPublicUrl(filename);
+                
+                return urlData.publicUrl;
             } catch (error) {
                 console.error('Image upload error:', error);
                 // Return original base64 if upload fails
@@ -2112,7 +2163,7 @@
                 // Other fields
                 notes: document.getElementById('notes').value.trim(),
                 images: [], // Will be populated after upload
-                updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                updated_at: new Date().toISOString()
             };
             
             // Validation
@@ -2131,36 +2182,49 @@
             
             try {
                 const isEdit = !!currentVehicleId;
-                let docId = currentVehicleId;
+                let vehicleId = currentVehicleId;
                 
-                // If new vehicle, create document first to get ID
+                // If new vehicle, insert first to get ID
                 if (!currentVehicleId) {
-                    data.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    const docRef = await db.collection('users').doc(currentUser.uid)
-                        .collection('vehicles').add(data);
-                    docId = docRef.id;
+                    data.user_id = currentUser.id;
+                    data.created_at = new Date().toISOString();
+                    data.deleted = false;
+                    
+                    const { data: insertedData, error: insertError } = await supabaseClient
+                        .from('vehicles')
+                        .insert(data)
+                        .select()
+                        .single();
+                    
+                    if (insertError) throw insertError;
+                    vehicleId = insertedData.id;
                 }
                 
-                // Upload images to Firebase Storage if there are any
+                // Upload images to Supabase Storage if there are any
                 if (pendingImages.length > 0) {
                     showLoading('جاري رفع الصور إلى السحابة...');
                     const uploadedImages = [];
                     
                     for (let i = 0; i < pendingImages.length; i++) {
-                        const imageUrl = await uploadImageToStorage(pendingImages[i], docId, i);
+                        const imageUrl = await uploadImageToStorage(pendingImages[i], vehicleId, i);
                         uploadedImages.push(imageUrl);
                     }
                     
                     data.images = uploadedImages;
                 }
                 
-                // Update the document with image URLs
+                // Update the vehicle with image URLs if editing or images were uploaded
                 if (isEdit || pendingImages.length > 0) {
-                    await db.collection('users').doc(currentUser.uid)
-                        .collection('vehicles').doc(docId).update({
+                    const { error: updateError } = await supabaseClient
+                        .from('vehicles')
+                        .update({
                             ...data,
-                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
-                        });
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', vehicleId)
+                        .eq('user_id', currentUser.id);
+                    
+                    if (updateError) throw updateError;
                 }
                 
                 // Log activity
@@ -2220,8 +2284,17 @@
                 // Get vehicle info before deleting
                 const vehicle = vehicles.find(v => v.id === currentVehicleId);
                 
-                await db.collection('users').doc(currentUser.uid)
-                    .collection('vehicles').doc(currentVehicleId).delete();
+                // Soft delete - update deleted flag
+                const { error } = await supabaseClient
+                    .from('vehicles')
+                    .update({ 
+                        deleted: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', currentVehicleId)
+                    .eq('user_id', currentUser.id);
+                
+                if (error) throw error;
                 
                 // Log activity
                 if (window.NFActivity && vehicle) {
@@ -2231,12 +2304,15 @@
                     });
                 }
                 
+                // Reload vehicles
+                await loadVehicles();
+                
                 showNotification('تم حذف المركبة', 'info');
                 hideLoading();
             } catch (error) {
                 console.error('Delete Error:', error);
                 hideLoading();
-                showNotification('خطأ في الحذف', 'error');
+                showNotification('خطأ في الحذف: ' + error.message, 'error');
             }
         }
         
@@ -2244,21 +2320,29 @@
             showLoading('جاري حذف جميع المركبات...');
             
             try {
-                const batch = db.batch();
-                const snapshot = await db.collection('users').doc(currentUser.uid)
-                    .collection('vehicles').get();
+                const count = vehicles.length;
                 
-                snapshot.docs.forEach(doc => {
-                    batch.delete(doc.ref);
-                });
+                // Soft delete all vehicles for this user
+                const { error } = await supabaseClient
+                    .from('vehicles')
+                    .update({ 
+                        deleted: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', currentUser.id)
+                    .eq('deleted', false);
                 
-                await batch.commit();
-                showNotification(`تم حذف ${snapshot.size} مركبة`, 'info');
+                if (error) throw error;
+                
+                // Reload vehicles
+                await loadVehicles();
+                
+                showNotification(`تم حذف ${count} مركبة`, 'info');
                 hideLoading();
             } catch (error) {
                 console.error('Delete All Error:', error);
                 hideLoading();
-                showNotification('خطأ في الحذف', 'error');
+                showNotification('خطأ في الحذف: ' + error.message, 'error');
             }
         }
 
@@ -2525,17 +2609,23 @@
             showLoading(`جاري استيراد ${vehiclesList.length} مركبة...`);
             
             try {
-                const batch = db.batch();
+                // Prepare vehicles for insert
+                const vehiclesToInsert = vehiclesList.map(vehicle => ({
+                    ...vehicle,
+                    user_id: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    deleted: false
+                }));
                 
-                vehiclesList.forEach(vehicle => {
-                    const ref = db.collection('users').doc(currentUser.uid)
-                        .collection('vehicles').doc();
-                    vehicle.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                    vehicle.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
-                    batch.set(ref, vehicle);
-                });
+                const { error } = await supabaseClient
+                    .from('vehicles')
+                    .insert(vehiclesToInsert);
                 
-                await batch.commit();
+                if (error) throw error;
+                
+                // Reload vehicles
+                await loadVehicles();
                 
                 hideLoading();
                 showNotification(`تم استيراد ${vehiclesList.length} مركبة بنجاح!`, 'success');
@@ -2557,13 +2647,25 @@
             confirmCallback = async () => {
                 showLoading('جاري تسجيل الخروج...');
                 try {
-                    if (unsubscribeSnapshot) unsubscribeSnapshot();
-                    await auth.signOut();
+                    // Unsubscribe from realtime
+                    if (unsubscribeSnapshot) {
+                        supabaseClient.removeChannel(unsubscribeSnapshot);
+                    }
+                    // Unsubscribe from auth
+                    if (authSubscription) {
+                        authSubscription.data?.subscription?.unsubscribe();
+                    }
+                    // Sign out
+                    await supabaseClient.auth.signOut();
+                    // Clear local storage
+                    localStorage.removeItem('vehicleData');
+                    localStorage.removeItem('currentVehicle');
+                    // Redirect
                     window.location.href = 'index.html';
                 } catch (error) {
                     console.error('Logout Error:', error);
                     hideLoading();
-                    showNotification('خطأ في تسجيل الخروج', 'error');
+                    showNotification('خطأ في تسجيل الخروج: ' + error.message, 'error');
                 }
             };
             document.getElementById('confirmModal').classList.add('show');
