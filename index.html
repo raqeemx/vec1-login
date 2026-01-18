@@ -1,0 +1,1450 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="نظام تقييم المركبات المستردة - تسجيل الدخول">
+    <meta name="theme-color" content="#667eea">
+    <title>نظام تقييم المركبات - تسجيل الدخول</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- New Features CSS -->
+    <link rel="stylesheet" href="css/new-features/dark-mode.css">
+    <link rel="stylesheet" href="css/new-features/notifications.css">
+    <link rel="stylesheet" href="css/new-features/validation.css">
+    <link rel="stylesheet" href="css/new-features/offline-mode.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --danger: #ef4444;
+            --warning: #f59e0b;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 50%, #f093fb 100%);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .bg-shapes {
+            position: absolute;
+            inset: 0;
+            overflow: hidden;
+            z-index: 0;
+        }
+
+        .bg-shapes span {
+            position: absolute;
+            display: block;
+            width: 20px;
+            height: 20px;
+            background: rgba(255, 255, 255, 0.1);
+            animation: float 25s linear infinite;
+            bottom: -150px;
+            border-radius: 50%;
+        }
+
+        .bg-shapes span:nth-child(1) { left: 25%; width: 80px; height: 80px; animation-delay: 0s; }
+        .bg-shapes span:nth-child(2) { left: 10%; width: 20px; height: 20px; animation-delay: 2s; }
+        .bg-shapes span:nth-child(3) { left: 70%; width: 20px; height: 20px; animation-delay: 4s; }
+        .bg-shapes span:nth-child(4) { left: 40%; width: 60px; height: 60px; animation-delay: 1s; }
+        .bg-shapes span:nth-child(5) { left: 65%; width: 20px; height: 20px; animation-delay: 3s; }
+        .bg-shapes span:nth-child(6) { left: 85%; width: 40px; height: 40px; animation-delay: 5s; }
+        .bg-shapes span:nth-child(7) { left: 5%; width: 50px; height: 50px; animation-delay: 6s; }
+
+        @keyframes float {
+            0% {
+                transform: translateY(0) rotate(0deg);
+                opacity: 1;
+            }
+            100% {
+                transform: translateY(-1000px) rotate(720deg);
+                opacity: 0;
+            }
+        }
+
+        .auth-container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 450px;
+        }
+
+        .logo-section {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+
+        .logo-icon {
+            width: 80px;
+            height: 80px;
+            background: white;
+            border-radius: 20px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 15px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+        }
+
+        .logo-icon i {
+            font-size: 40px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .logo-section h1 {
+            color: white;
+            font-size: 1.8rem;
+            font-weight: 700;
+            text-shadow: 0 2px 10px rgba(0,0,0,0.2);
+        }
+
+        .logo-section p {
+            color: rgba(255,255,255,0.9);
+            font-size: 0.95rem;
+            margin-top: 5px;
+        }
+
+        .auth-card {
+            background: white;
+            border-radius: 24px;
+            box-shadow: 0 25px 50px rgba(0,0,0,0.25);
+            overflow: hidden;
+        }
+
+        .auth-tabs {
+            display: flex;
+            background: #f1f5f9;
+        }
+
+        .auth-tab {
+            flex: 1;
+            padding: 18px;
+            text-align: center;
+            cursor: pointer;
+            font-weight: 600;
+            color: #64748b;
+            transition: all 0.3s ease;
+            border: none;
+            background: transparent;
+            font-size: 1rem;
+            font-family: inherit;
+        }
+
+        .auth-tab.active {
+            background: white;
+            color: var(--primary);
+        }
+
+        .auth-tab:hover:not(.active) {
+            background: #e2e8f0;
+        }
+
+        .auth-content {
+            padding: 35px;
+        }
+
+        .form-panel {
+            display: none;
+        }
+
+        .form-panel.active {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #1f2937;
+            font-size: 0.95rem;
+        }
+
+        .input-wrapper {
+            position: relative;
+        }
+
+        .input-wrapper i.input-icon {
+            position: absolute;
+            right: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #94a3b8;
+            font-size: 1rem;
+        }
+
+        .input-wrapper input {
+            width: 100%;
+            padding: 15px 45px 15px 45px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            font-size: 1rem;
+            font-family: inherit;
+            transition: all 0.3s ease;
+            background: #f8fafc;
+        }
+
+        .input-wrapper input:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+
+        .toggle-password {
+            position: absolute;
+            left: 15px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            color: #94a3b8;
+            cursor: pointer;
+            padding: 5px;
+            font-size: 1rem;
+        }
+
+        .toggle-password:hover {
+            color: var(--primary);
+        }
+
+        .form-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            font-size: 0.9rem;
+        }
+
+        .remember-me {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .remember-me input {
+            width: 18px;
+            height: 18px;
+            accent-color: var(--primary);
+        }
+
+        .forgot-link {
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 500;
+        }
+
+        .forgot-link:hover {
+            text-decoration: underline;
+        }
+
+        .btn-submit {
+            width: 100%;
+            padding: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+            border: none;
+            border-radius: 12px;
+            font-size: 1.1rem;
+            font-weight: 700;
+            font-family: inherit;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .btn-submit:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.7;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .divider {
+            display: flex;
+            align-items: center;
+            margin: 25px 0;
+            color: #94a3b8;
+            font-size: 0.9rem;
+        }
+
+        .divider::before,
+        .divider::after {
+            content: '';
+            flex: 1;
+            height: 1px;
+            background: #e2e8f0;
+        }
+
+        .divider span {
+            padding: 0 15px;
+        }
+
+        .social-login {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-social {
+            flex: 1;
+            padding: 14px;
+            border: 2px solid #e2e8f0;
+            border-radius: 12px;
+            background: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            font-family: inherit;
+        }
+
+        .btn-social:hover {
+            border-color: var(--primary);
+            background: #f8fafc;
+        }
+
+        .btn-social:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+
+        .btn-social.google i { color: #ea4335; }
+        .btn-social.microsoft i { color: #00a4ef; }
+
+        .alert {
+            padding: 12px 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: none;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .alert.show {
+            display: flex;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .alert-error {
+            background: #fef2f2;
+            border: 1px solid #fecaca;
+            color: #dc2626;
+        }
+
+        .alert-success {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            color: #065f46;
+        }
+
+        .alert-warning {
+            background: #fffbeb;
+            border: 1px solid #fde68a;
+            color: #92400e;
+        }
+
+        .alert-info {
+            background: #eff6ff;
+            border: 1px solid #bfdbfe;
+            color: #1e40af;
+        }
+
+        /* Reset Password Panel */
+        .reset-header {
+            text-align: center;
+            margin-bottom: 25px;
+        }
+
+        .reset-header i {
+            font-size: 50px;
+            color: var(--primary);
+            margin-bottom: 15px;
+        }
+
+        .reset-header h3 {
+            color: #1f2937;
+            margin-bottom: 10px;
+        }
+
+        .reset-header p {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+
+        .btn-back {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            color: var(--primary);
+            background: none;
+            border: none;
+            font-family: inherit;
+            font-size: 0.95rem;
+            cursor: pointer;
+            margin-top: 20px;
+            margin-inline: auto;
+        }
+
+        .btn-back:hover {
+            text-decoration: underline;
+        }
+
+        .success-message {
+            background: #ecfdf5;
+            border: 1px solid #a7f3d0;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            color: #065f46;
+            display: none;
+        }
+
+        .success-message.show {
+            display: block;
+            animation: fadeIn 0.3s ease;
+        }
+
+        .success-message i {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            display: block;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.6);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+
+        .loading-overlay.show {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 40px 50px;
+            border-radius: 20px;
+            text-align: center;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e2e8f0;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        .loading-content p {
+            color: #1f2937;
+            font-weight: 600;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Features List */
+        .features-list {
+            margin-top: 25px;
+            padding-top: 20px;
+            border-top: 1px solid #e2e8f0;
+        }
+
+        .features-list h4 {
+            color: #1f2937;
+            font-size: 0.9rem;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 8px;
+        }
+
+        .feature-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            font-size: 0.8rem;
+            color: #64748b;
+        }
+
+        .feature-item i {
+            color: var(--success);
+            font-size: 0.75rem;
+        }
+
+        /* Footer */
+        .auth-footer {
+            text-align: center;
+            margin-top: 25px;
+            color: rgba(255,255,255,0.9);
+            font-size: 0.85rem;
+        }
+
+        /* Password Strength Indicator */
+        .password-strength {
+            margin-top: 8px;
+            display: none;
+        }
+        
+        .password-strength.show {
+            display: block;
+        }
+        
+        .password-strength-bar {
+            height: 4px;
+            background: #e2e8f0;
+            border-radius: 2px;
+            overflow: hidden;
+        }
+        
+        .password-strength-fill {
+            height: 100%;
+            width: 0;
+            transition: all 0.3s ease;
+            border-radius: 2px;
+        }
+        
+        .password-strength-text {
+            font-size: 0.8rem;
+            margin-top: 4px;
+        }
+        
+        .strength-weak { background: #ef4444; }
+        .strength-fair { background: #f59e0b; }
+        .strength-good { background: #10b981; }
+        .strength-strong { background: #059669; }
+
+        /* Version Badge */
+        .version-badge {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background: rgba(255,255,255,0.9);
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            color: #64748b;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            z-index: 100;
+        }
+
+        /* Responsive */
+        @media (max-width: 480px) {
+            .auth-content {
+                padding: 25px 20px;
+            }
+
+            .social-login {
+                flex-direction: column;
+            }
+
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .form-options {
+                flex-direction: column;
+                gap: 15px;
+                align-items: flex-start;
+            }
+            
+            .version-badge {
+                display: none;
+            }
+        }
+
+        /* Dark Mode Overrides */
+        html.dark .auth-card {
+            background: #1e293b;
+        }
+        
+        html.dark .auth-tabs {
+            background: #0f172a;
+        }
+        
+        html.dark .auth-tab {
+            color: #94a3b8;
+        }
+        
+        html.dark .auth-tab.active {
+            background: #1e293b;
+            color: #818cf8;
+        }
+        
+        html.dark .form-group label {
+            color: #f1f5f9;
+        }
+        
+        html.dark .input-wrapper input {
+            background: #334155;
+            border-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        html.dark .input-wrapper input:focus {
+            background: #1e293b;
+            border-color: #818cf8;
+        }
+        
+        html.dark .btn-social {
+            background: #334155;
+            border-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        html.dark .loading-content {
+            background: #1e293b;
+        }
+        
+        html.dark .loading-content p {
+            color: #f1f5f9;
+        }
+        
+        html.dark .features-list {
+            border-top-color: #475569;
+        }
+        
+        html.dark .features-list h4,
+        html.dark .feature-item {
+            color: #94a3b8;
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-shapes">
+        <span></span><span></span><span></span><span></span><span></span><span></span><span></span>
+    </div>
+
+    <div class="auth-container">
+        <div class="logo-section">
+            <div class="logo-icon">
+                <i class="fas fa-car"></i>
+            </div>
+            <h1>نظام تقييم المركبات</h1>
+            <p>إدارة المركبات المستردة بكفاءة واحترافية</p>
+        </div>
+
+        <div class="auth-card">
+            <div class="auth-tabs">
+                <button class="auth-tab active" data-tab="login">
+                    <i class="fas fa-sign-in-alt"></i> تسجيل الدخول
+                </button>
+                <button class="auth-tab" data-tab="register">
+                    <i class="fas fa-user-plus"></i> حساب جديد
+                </button>
+            </div>
+
+            <div class="auth-content">
+                <div id="alertBox" class="alert">
+                    <i class="fas fa-info-circle"></i>
+                    <span id="alertText"></span>
+                </div>
+
+                <!-- Login Panel -->
+                <div id="loginPanel" class="form-panel active">
+                    <form id="loginForm" onsubmit="handleLogin(event)">
+                        <div class="form-group">
+                            <label>البريد الإلكتروني</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input type="email" id="loginEmail" placeholder="example@email.com" required autocomplete="email">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>كلمة المرور</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                                <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <div class="form-options">
+                            <label class="remember-me">
+                                <input type="checkbox" id="rememberMe">
+                                <span>تذكرني</span>
+                            </label>
+                            <a href="#" class="forgot-link" onclick="showResetPassword(event)">نسيت كلمة المرور؟</a>
+                        </div>
+
+                        <button type="submit" class="btn-submit" id="loginBtn">
+                            <i class="fas fa-sign-in-alt"></i>
+                            <span>تسجيل الدخول</span>
+                        </button>
+                    </form>
+
+                    <div class="divider"><span>أو</span></div>
+
+                    <div class="social-login">
+                        <button type="button" class="btn-social google" id="googleLoginBtn" onclick="signInWithGoogle()">
+                            <i class="fab fa-google"></i>
+                            <span>Google</span>
+                        </button>
+                        <button type="button" class="btn-social microsoft" id="microsoftLoginBtn" onclick="signInWithMicrosoft()">
+                            <i class="fab fa-microsoft"></i>
+                            <span>Microsoft</span>
+                        </button>
+                    </div>
+
+                    <div class="features-list">
+                        <h4><i class="fas fa-shield-alt"></i> مميزات النظام</h4>
+                        <div class="features-grid">
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>تزامن فوري</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>حفظ سحابي</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>أمان عالي</span>
+                            </div>
+                            <div class="feature-item">
+                                <i class="fas fa-check-circle"></i>
+                                <span>نسخ احتياطي</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Register Panel -->
+                <div id="registerPanel" class="form-panel">
+                    <form id="registerForm" onsubmit="handleRegister(event)">
+                        <div class="form-group">
+                            <label>الاسم الكامل</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-user input-icon"></i>
+                                <input type="text" id="registerName" placeholder="أدخل اسمك الكامل" required autocomplete="name">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>البريد الإلكتروني</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input type="email" id="registerEmail" placeholder="example@email.com" required autocomplete="email">
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>كلمة المرور</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input type="password" id="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
+                                <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                            <div class="password-strength" id="passwordStrength">
+                                <div class="password-strength-bar">
+                                    <div class="password-strength-fill" id="passwordStrengthFill"></div>
+                                </div>
+                                <div class="password-strength-text" id="passwordStrengthText"></div>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label>تأكيد كلمة المرور</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-lock input-icon"></i>
+                                <input type="password" id="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password" data-match="registerPassword">
+                                <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit" id="registerBtn">
+                            <i class="fas fa-user-plus"></i>
+                            <span>إنشاء حساب</span>
+                        </button>
+                    </form>
+
+                    <div class="divider"><span>أو</span></div>
+
+                    <div class="social-login">
+                        <button type="button" class="btn-social google" onclick="signInWithGoogle()">
+                            <i class="fab fa-google"></i>
+                            <span>Google</span>
+                        </button>
+                        <button type="button" class="btn-social microsoft" onclick="signInWithMicrosoft()">
+                            <i class="fab fa-microsoft"></i>
+                            <span>Microsoft</span>
+                        </button>
+                    </div>
+                </div>
+
+                <!-- Reset Password Panel -->
+                <div id="resetPanel" class="form-panel">
+                    <div class="reset-header">
+                        <i class="fas fa-key"></i>
+                        <h3>استعادة كلمة المرور</h3>
+                        <p>أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور</p>
+                    </div>
+
+                    <div class="success-message" id="resetSuccess">
+                        <i class="fas fa-check-circle"></i>
+                        <strong>تم الإرسال بنجاح!</strong>
+                        <p style="margin-top: 10px;">تحقق من بريدك الإلكتروني للحصول على رابط إعادة التعيين</p>
+                    </div>
+
+                    <form id="resetForm" onsubmit="handleResetPassword(event)">
+                        <div class="form-group">
+                            <label>البريد الإلكتروني</label>
+                            <div class="input-wrapper">
+                                <i class="fas fa-envelope input-icon"></i>
+                                <input type="email" id="resetEmail" placeholder="example@email.com" required>
+                            </div>
+                        </div>
+
+                        <button type="submit" class="btn-submit" id="resetBtn">
+                            <i class="fas fa-paper-plane"></i>
+                            <span>إرسال رابط الاستعادة</span>
+                        </button>
+                    </form>
+
+                    <button class="btn-back" onclick="showLoginPanel()">
+                        <i class="fas fa-arrow-right"></i>
+                        العودة لتسجيل الدخول
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="auth-footer">
+            <p>© 2024 نظام تقييم المركبات المستردة - الإصدار 7.0 Offline</p>
+        </div>
+    </div>
+
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">جاري المعالجة...</p>
+        </div>
+    </div>
+
+    <!-- Version Badge -->
+    <div class="version-badge">
+        <i class="fas fa-code-branch"></i> v7.0 Offline
+    </div>
+
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Config -->
+    <script src="js/supabase-config.js"></script>
+
+    <script>
+        // ========================================
+        // Global Variables
+        // ========================================
+        let isProcessingAuth = false;
+        let authCheckComplete = false;
+        let redirectTimeout = null;
+        const REDIRECT_DELAY = 1500;
+
+        // ========================================
+        // Initialize Supabase - Use global client from supabase-config.js
+        // ========================================
+        let supabaseClient = null;
+        
+        document.addEventListener('DOMContentLoaded', async () => {
+            console.log('Page loaded, initializing Supabase...');
+            
+            // Use the async initialization from supabase-config.js
+            try {
+                supabaseClient = await getSupabaseClientAsync();
+                
+                if (supabaseClient) {
+                    console.log('✅ Supabase client initialized');
+                    // Check auth state
+                    checkAuthState();
+                } else {
+                    console.error('❌ Supabase client initialization failed');
+                    showAlert('خطأ في تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                }
+            } catch (error) {
+                console.error('❌ Supabase initialization error:', error);
+                showAlert('خطأ في تحميل النظام. يرجى تحديث الصفحة.', 'error');
+            }
+            
+            disableButtons(false);
+        });
+
+        // ========================================
+        // Check Auth State
+        // ========================================
+        async function checkAuthState() {
+            try {
+                if (!supabaseClient) {
+                    console.error('Supabase client not initialized');
+                    hideLoading();
+                    disableButtons(false);
+                    return;
+                }
+                
+                // ===== المصدر الرئيسي: Supabase =====
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                
+                if (session && session.user) {
+                    console.log('User already signed in, redirecting to dashboard...');
+                    
+                    // حفظ الجلسة محلياً للاستخدام عند انقطاع الإنترنت
+                    if (window.OfflineStorage) {
+                        try {
+                            await OfflineStorage.Users.saveSession(session);
+                        } catch (e) { /* ignore */ }
+                    }
+                    
+                    showLoading('جاري التحويل للوحة التحكم...');
+                    setTimeout(() => {
+                        window.location.replace('dashboard.html');
+                    }, 800);
+                } else {
+                    console.log('User not signed in - showing login page');
+                    hideLoading();
+                    disableButtons(false);
+                }
+                
+                authCheckComplete = true;
+                
+            } catch (error) {
+                console.error('Auth check error:', error);
+                
+                // ===== الاحتياط: التحقق من الجلسة المحلية عند فشل الاتصال =====
+                if (window.OfflineStorage && error.message.includes('fetch')) {
+                    const offlineSession = OfflineStorage.Users.getSession();
+                    if (offlineSession && offlineSession.user) {
+                        console.log('⚠️ فشل الاتصال، جاري استخدام الجلسة المحلية...');
+                        showLoading('جاري التحويل للوحة التحكم...');
+                        setTimeout(() => {
+                            window.location.replace('dashboard.html');
+                        }, 800);
+                        return;
+                    }
+                }
+                
+                hideLoading();
+                disableButtons(false);
+            }
+        }
+
+        // ========================================
+        // Tab Switching
+        // ========================================
+        document.querySelectorAll('.auth-tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                const targetTab = tab.dataset.tab;
+                document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+                document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+                document.getElementById(targetTab + 'Panel').classList.add('active');
+                hideAlert();
+            });
+        });
+
+        // ========================================
+        // Toggle Password Visibility
+        // ========================================
+        function togglePassword(inputId, button) {
+            const input = document.getElementById(inputId);
+            const icon = button.querySelector('i');
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.className = 'fas fa-eye-slash';
+            } else {
+                input.type = 'password';
+                icon.className = 'fas fa-eye';
+            }
+        }
+
+        // ========================================
+        // Password Strength Indicator
+        // ========================================
+        function updatePasswordStrength(password) {
+            const strengthEl = document.getElementById('passwordStrength');
+            const fillEl = document.getElementById('passwordStrengthFill');
+            const textEl = document.getElementById('passwordStrengthText');
+            
+            if (password.length === 0) {
+                strengthEl.classList.remove('show');
+                return;
+            }
+            
+            strengthEl.classList.add('show');
+            
+            let strength = 0;
+            if (password.length >= 8) strength++;
+            if (password.length >= 12) strength++;
+            if (/[a-z]/.test(password) && /[A-Z]/.test(password)) strength++;
+            if (/\d/.test(password)) strength++;
+            if (/[^a-zA-Z0-9]/.test(password)) strength++;
+            
+            const levels = [
+                { class: 'strength-weak', text: 'ضعيفة جداً', width: '20%', color: '#ef4444' },
+                { class: 'strength-weak', text: 'ضعيفة', width: '40%', color: '#f59e0b' },
+                { class: 'strength-fair', text: 'متوسطة', width: '60%', color: '#eab308' },
+                { class: 'strength-good', text: 'جيدة', width: '80%', color: '#10b981' },
+                { class: 'strength-strong', text: 'قوية جداً', width: '100%', color: '#059669' }
+            ];
+            
+            const level = levels[Math.min(strength, 4)];
+            fillEl.style.width = level.width;
+            fillEl.style.background = level.color;
+            textEl.textContent = level.text;
+            textEl.style.color = level.color;
+        }
+
+        // ========================================
+        // Alert Functions
+        // ========================================
+        function showAlert(message, type = 'error') {
+            const alertBox = document.getElementById('alertBox');
+            const alertText = document.getElementById('alertText');
+            alertBox.className = `alert alert-${type} show`;
+            alertText.textContent = message;
+            const icon = alertBox.querySelector('i');
+            if (type === 'error') icon.className = 'fas fa-exclamation-circle';
+            else if (type === 'success') icon.className = 'fas fa-check-circle';
+            else if (type === 'warning') icon.className = 'fas fa-exclamation-triangle';
+            else icon.className = 'fas fa-info-circle';
+        }
+
+        function hideAlert() {
+            document.getElementById('alertBox').classList.remove('show');
+        }
+
+        // ========================================
+        // Loading Functions
+        // ========================================
+        function showLoading(text = 'جاري المعالجة...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        // ========================================
+        // Disable/Enable Buttons
+        // ========================================
+        function disableButtons(disabled = true) {
+            const buttons = document.querySelectorAll('.btn-submit, .btn-social');
+            buttons.forEach(btn => btn.disabled = disabled);
+        }
+
+        // ========================================
+        // Login Handler
+        // ========================================
+        async function handleLogin(event) {
+            event.preventDefault();
+            hideAlert();
+            
+            const email = document.getElementById('loginEmail').value.trim();
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                showAlert('يرجى ملء جميع الحقول');
+                return;
+            }
+
+            showLoading('جاري تسجيل الدخول...');
+            disableButtons(true);
+            isProcessingAuth = true;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithPassword({
+                    email,
+                    password
+                });
+                
+                if (error) throw error;
+                
+                showAlert('تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
+                forceRedirect();
+                
+            } catch (error) {
+                hideLoading();
+                disableButtons(false);
+                isProcessingAuth = false;
+                handleAuthError(error);
+            }
+        }
+
+        // ========================================
+        // Register Handler
+        // ========================================
+        async function handleRegister(event) {
+            event.preventDefault();
+            hideAlert();
+            
+            const name = document.getElementById('registerName').value.trim();
+            const email = document.getElementById('registerEmail').value.trim();
+            const password = document.getElementById('registerPassword').value;
+            const confirmPassword = document.getElementById('confirmPassword').value;
+            
+            if (!name || !email || !password || !confirmPassword) {
+                showAlert('يرجى ملء جميع الحقول');
+                return;
+            }
+            
+            if (password.length < 8) {
+                showAlert('كلمة المرور يجب أن تكون 8 أحرف على الأقل');
+                return;
+            }
+            
+            if (password !== confirmPassword) {
+                showAlert('كلمات المرور غير متطابقة');
+                return;
+            }
+
+            showLoading('جاري إنشاء الحساب...');
+            disableButtons(true);
+            isProcessingAuth = true;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            display_name: name,
+                            full_name: name
+                        }
+                    }
+                });
+                
+                if (error) throw error;
+                
+                // Check if email confirmation is required
+                if (data.user && data.user.identities && data.user.identities.length === 0) {
+                    hideLoading();
+                    disableButtons(false);
+                    isProcessingAuth = false;
+                    showAlert('البريد الإلكتروني مستخدم بالفعل', 'error');
+                    return;
+                }
+                
+                if (data.session) {
+                    // User is automatically signed in
+                    showAlert('تم إنشاء الحساب بنجاح! جاري التحويل...', 'success');
+                    forceRedirect();
+                } else {
+                    // Email confirmation required
+                    hideLoading();
+                    disableButtons(false);
+                    isProcessingAuth = false;
+                    showAlert('تم إنشاء الحساب! يرجى تأكيد بريدك الإلكتروني للمتابعة.', 'success');
+                }
+                
+            } catch (error) {
+                hideLoading();
+                disableButtons(false);
+                isProcessingAuth = false;
+                handleAuthError(error);
+            }
+        }
+
+        // ========================================
+        // Google Sign In
+        // ========================================
+        async function signInWithGoogle() {
+            if (isProcessingAuth) {
+                console.log('Auth already in progress, ignoring...');
+                return;
+            }
+            
+            hideAlert();
+            showLoading('جاري فتح نافذة Google...');
+            disableButtons(true);
+            isProcessingAuth = true;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: 'google',
+                    options: {
+                        redirectTo: window.location.origin + '/dashboard.html'
+                    }
+                });
+                
+                if (error) throw error;
+                
+                // The user will be redirected to Google for authentication
+                // No need to handle success here as the page will redirect
+                
+            } catch (error) {
+                console.error('Google Sign In Error:', error);
+                hideLoading();
+                disableButtons(false);
+                isProcessingAuth = false;
+                handleAuthError(error);
+            }
+        }
+        
+        // ========================================
+        // Force Redirect Function
+        // ========================================
+        function forceRedirect() {
+            console.log('Forcing redirect to dashboard...');
+            
+            if (redirectTimeout) {
+                clearTimeout(redirectTimeout);
+            }
+            
+            redirectTimeout = setTimeout(() => {
+                console.log('Executing redirect now...');
+                window.location.replace('dashboard.html');
+            }, REDIRECT_DELAY);
+        }
+
+        // ========================================
+        // Microsoft Sign In
+        // ========================================
+        async function signInWithMicrosoft() {
+            if (isProcessingAuth) {
+                console.log('Auth already in progress, ignoring...');
+                return;
+            }
+            
+            hideAlert();
+            showLoading('جاري فتح نافذة Microsoft...');
+            disableButtons(true);
+            isProcessingAuth = true;
+            
+            try {
+                const { data, error } = await supabaseClient.auth.signInWithOAuth({
+                    provider: 'azure',
+                    options: {
+                        redirectTo: window.location.origin + '/dashboard.html',
+                        scopes: 'email profile openid'
+                    }
+                });
+                
+                if (error) throw error;
+                
+                // The user will be redirected to Microsoft for authentication
+                
+            } catch (error) {
+                console.error('Microsoft Sign In Error:', error);
+                hideLoading();
+                disableButtons(false);
+                isProcessingAuth = false;
+                handleAuthError(error);
+            }
+        }
+
+        // ========================================
+        // Reset Password
+        // ========================================
+        function showResetPassword(event) {
+            event.preventDefault();
+            document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('resetPanel').classList.add('active');
+            document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
+            hideAlert();
+        }
+
+        function showLoginPanel() {
+            document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+            document.getElementById('loginPanel').classList.add('active');
+            document.querySelector('[data-tab="login"]').classList.add('active');
+            document.getElementById('resetSuccess').classList.remove('show');
+            document.getElementById('resetForm').style.display = 'block';
+            hideAlert();
+        }
+
+        async function handleResetPassword(event) {
+            event.preventDefault();
+            hideAlert();
+            
+            const email = document.getElementById('resetEmail').value.trim();
+            
+            if (!email) {
+                showAlert('يرجى إدخال البريد الإلكتروني');
+                return;
+            }
+
+            showLoading('جاري إرسال رابط الاستعادة...');
+            
+            try {
+                const { data, error } = await supabaseClient.auth.resetPasswordForEmail(email, {
+                    redirectTo: window.location.origin + '/index.html?reset=true'
+                });
+                
+                if (error) throw error;
+                
+                hideLoading();
+                document.getElementById('resetSuccess').classList.add('show');
+                document.getElementById('resetForm').style.display = 'none';
+            } catch (error) {
+                hideLoading();
+                handleAuthError(error);
+            }
+        }
+
+        // ========================================
+        // Error Handler
+        // ========================================
+        function handleAuthError(error) {
+            console.error('Auth Error:', error);
+            
+            const errorMessages = {
+                'Invalid login credentials': 'بيانات الدخول غير صحيحة',
+                'User already registered': 'البريد الإلكتروني مستخدم بالفعل',
+                'Password should be at least 6 characters': 'كلمة المرور يجب أن تكون 6 أحرف على الأقل',
+                'Invalid email': 'البريد الإلكتروني غير صالح',
+                'Email not confirmed': 'يرجى تأكيد البريد الإلكتروني',
+                'User not found': 'المستخدم غير موجود',
+                'Too many requests': 'تم تجاوز عدد المحاولات. يرجى الانتظار',
+                'Network error': 'خطأ في الاتصال بالإنترنت',
+                'Email rate limit exceeded': 'تم تجاوز حد الإرسال. حاول لاحقاً',
+                'Signup disabled': 'التسجيل معطل حالياً',
+                'For security purposes': 'لأسباب أمنية، يرجى الانتظار قبل المحاولة مرة أخرى'
+            };
+            
+            const errorMsg = error.message || error.toString();
+            let message = errorMsg;
+            
+            for (const [key, value] of Object.entries(errorMessages)) {
+                if (errorMsg.includes(key)) {
+                    message = value;
+                    break;
+                }
+            }
+            
+            showAlert(message);
+        }
+    </script>
+
+    <!-- Offline Support JS -->
+    <script src="js/offline-storage.js"></script>
+    <script src="js/connection-monitor.js"></script>
+    
+    <!-- New Features JS -->
+    <script src="js/dark-mode-toggle.js"></script>
+    <script src="js/enhanced-notifications.js"></script>
+    <script src="js/form-validator.js"></script>
+    
+    <script>
+        // Initialize Form Validator for login and register forms
+        document.addEventListener('DOMContentLoaded', function() {
+            // Login form validation
+            if (window.NFValidator) {
+                new NFValidator.FormValidator('#loginForm', {
+                    realTime: true,
+                    scrollToError: true,
+                    showSuccessState: true
+                });
+                
+                // Register form validation
+                new NFValidator.FormValidator('#registerForm', {
+                    realTime: true,
+                    scrollToError: true,
+                    showSuccessState: true
+                });
+            }
+            
+            // Override the default showAlert to use NFNotify
+            const originalShowAlert = window.showAlert;
+            window.showAlert = function(message, type = 'error') {
+                // Show both - native alert box and notification
+                originalShowAlert(message, type);
+                if (window.NFNotify) {
+                    NFNotify.show({ message, type });
+                }
+            };
+        });
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.warn('⚠️ Service Worker registration failed:', error);
+                    });
+            });
+        }
+    </script>
+    
+    <!-- Connection Indicator -->
+    <div id="connection-indicator" class="connection-indicator online">
+        <i class="fas fa-wifi"></i> <span>متصل</span>
+    </div>
+</body>
+</html>
