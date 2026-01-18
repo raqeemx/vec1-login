@@ -18,6 +18,10 @@
     <link rel="stylesheet" href="css/new-features/filters.css">
     <link rel="stylesheet" href="css/new-features/enhanced-stats.css">
     <link rel="stylesheet" href="css/new-features/activity-warehouse.css">
+    <link rel="stylesheet" href="css/new-features/offline-mode.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
     
     <!-- External Libraries -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
@@ -29,6 +33,10 @@
     
     <!-- Supabase Config -->
     <script src="js/supabase-config.js"></script>
+    
+    <!-- Offline Support -->
+    <script src="js/offline-storage.js"></script>
+    <script src="js/connection-monitor.js"></script>
     
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -1494,43 +1502,106 @@
             }, 10000);
             
             try {
-                // Check current session
-                const { data: { session } } = await supabaseClient.auth.getSession();
+                let session = null;
+                let user = null;
+                
+                // محاولة الحصول على الجلسة من Supabase
+                if (supabaseClient && navigator.onLine) {
+                    try {
+                        const { data } = await supabaseClient.auth.getSession();
+                        session = data.session;
+                        if (session) {
+                            user = session.user;
+                            // حفظ الجلسة محلياً
+                            if (window.OfflineStorage) {
+                                await OfflineStorage.Users.saveSession(session);
+                            }
+                        }
+                    } catch (authError) {
+                        console.warn('Supabase auth error:', authError);
+                    }
+                }
+                
+                // إذا لم نحصل على جلسة من Supabase، نحاول الجلسة المحلية
+                if (!user && window.OfflineStorage) {
+                    const offlineSession = OfflineStorage.Users.getSession();
+                    if (offlineSession && offlineSession.user) {
+                        session = offlineSession;
+                        user = offlineSession.user;
+                        console.log('Using offline session');
+                    }
+                }
                 
                 if (authTimeout) {
                     clearTimeout(authTimeout);
                     authTimeout = null;
                 }
                 
-                if (session && session.user) {
-                    console.log('User authenticated:', session.user.email);
-                    currentUser = session.user;
+                if (user) {
+                    console.log('User authenticated:', user.email);
+                    currentUser = user;
                     loader.style.display = 'none';
                     main.style.display = 'block';
                     
-                    updateUserUI(session.user);
-                    setupRealtimeSync();
+                    updateUserUI(user);
+                    
+                    // فقط إعداد المزامنة في الوقت الحقيقي إذا كان متصلاً
+                    if (navigator.onLine && supabaseClient) {
+                        setupRealtimeSync();
+                    }
+                    
                     setupConnectionMonitor();
                     await loadVehicles();
+                    
+                    // عرض إشعار إذا كان في وضع عدم الاتصال
+                    if (!navigator.onLine) {
+                        showNotification('أنت تعمل في وضع عدم الاتصال - البيانات من التخزين المحلي', 'warning');
+                    }
                 } else {
                     console.log('User not authenticated, redirecting to login...');
                     window.location.replace('index.html');
                 }
                 
-                // Listen for auth state changes
-                authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
-                    console.log('Auth state changed:', event);
-                    if (event === 'SIGNED_OUT' || !session) {
-                        window.location.replace('index.html');
-                    } else if (event === 'SIGNED_IN' && session) {
-                        currentUser = session.user;
-                        updateUserUI(session.user);
-                    }
-                });
+                // Listen for auth state changes (only if online)
+                if (supabaseClient) {
+                    authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                        console.log('Auth state changed:', event);
+                        if (event === 'SIGNED_OUT' || !session) {
+                            // مسح الجلسة المحلية
+                            if (window.OfflineStorage) {
+                                OfflineStorage.Users.clearSession();
+                            }
+                            window.location.replace('index.html');
+                        } else if (event === 'SIGNED_IN' && session) {
+                            currentUser = session.user;
+                            // حفظ الجلسة محلياً
+                            if (window.OfflineStorage) {
+                                await OfflineStorage.Users.saveSession(session);
+                            }
+                            updateUserUI(session.user);
+                        }
+                    });
+                }
                 
             } catch (error) {
                 console.error('Auth check error:', error);
                 if (authTimeout) clearTimeout(authTimeout);
+                
+                // محاولة استخدام الجلسة المحلية كملاذ أخير
+                if (window.OfflineStorage) {
+                    const offlineSession = OfflineStorage.Users.getSession();
+                    if (offlineSession && offlineSession.user) {
+                        console.log('Using offline session after error');
+                        currentUser = offlineSession.user;
+                        loader.style.display = 'none';
+                        main.style.display = 'block';
+                        updateUserUI(offlineSession.user);
+                        await loadVehicles();
+                        showNotification('تعذر الاتصال بالخادم - جاري العمل في وضع عدم الاتصال', 'warning');
+                        return;
+                    }
+                }
+                
                 window.location.replace('index.html');
             }
         });
@@ -1639,20 +1710,39 @@
         }
 
         // ========================================
-        // Load Vehicles - Supabase
+        // Load Vehicles - Supabase with Offline Support
         // ========================================
         async function loadVehicles() {
             showLoading('جاري تحميل البيانات...');
             
-            // Ensure Supabase client is initialized
-            if (!supabaseClient) {
-                console.error('Supabase client not initialized');
-                hideLoading();
-                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
-                return;
-            }
-            
             try {
+                // محاولة استخدام ConnectionMonitor أولاً
+                if (window.ConnectionMonitor && currentUser) {
+                    vehicles = await ConnectionMonitor.getVehicles(currentUser.id);
+                    renderVehicles();
+                    updateStats();
+                    hideLoading();
+                    return;
+                }
+                
+                // إذا لم يكن ConnectionMonitor متاحاً، استخدم Supabase مباشرة
+                if (!supabaseClient) {
+                    // محاولة التحميل من التخزين المحلي
+                    if (window.OfflineStorage && currentUser) {
+                        vehicles = await OfflineStorage.Vehicles.getAll(currentUser.id);
+                        renderVehicles();
+                        updateStats();
+                        hideLoading();
+                        showNotification('تم تحميل البيانات من التخزين المحلي', 'info');
+                        return;
+                    }
+                    
+                    console.error('Supabase client not initialized');
+                    hideLoading();
+                    showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                    return;
+                }
+                
                 const { data, error } = await supabaseClient
                     .from('vehicles')
                     .select('*')
@@ -1664,11 +1754,31 @@
                 
                 vehicles = data || [];
                 
+                // حفظ نسخة محلية
+                if (window.OfflineStorage) {
+                    await OfflineStorage.Vehicles.saveAll(vehicles);
+                }
+                
                 renderVehicles();
                 updateStats();
                 hideLoading();
             } catch (error) {
                 console.error('Load Error:', error);
+                
+                // محاولة التحميل من التخزين المحلي عند فشل الاتصال
+                if (window.OfflineStorage && currentUser) {
+                    try {
+                        vehicles = await OfflineStorage.Vehicles.getAll(currentUser.id);
+                        renderVehicles();
+                        updateStats();
+                        hideLoading();
+                        showNotification('تم تحميل البيانات من التخزين المحلي (وضع عدم الاتصال)', 'warning');
+                        return;
+                    } catch (offlineError) {
+                        console.error('Offline load error:', offlineError);
+                    }
+                }
+                
                 hideLoading();
                 showNotification('خطأ في تحميل البيانات: ' + error.message, 'error');
             }
@@ -2243,38 +2353,68 @@
             try {
                 const isEdit = !!currentVehicleId;
                 let vehicleId = currentVehicleId;
+                let savedVehicle = null;
                 
-                // If new vehicle, insert first to get ID
-                if (!currentVehicleId) {
-                    data.user_id = currentUser.id;
-                    data.created_at = new Date().toISOString();
-                    data.deleted = false;
-                    
-                    const { data: insertedData, error: insertError } = await supabaseClient
-                        .from('vehicles')
-                        .insert(data)
-                        .select()
-                        .single();
-                    
-                    if (insertError) throw insertError;
-                    vehicleId = insertedData.id;
+                // محاولة استخدام ConnectionMonitor أولاً
+                if (window.ConnectionMonitor) {
+                    if (isEdit) {
+                        savedVehicle = await ConnectionMonitor.updateVehicle(currentUser.id, vehicleId, data);
+                    } else {
+                        savedVehicle = await ConnectionMonitor.createVehicle(currentUser.id, data);
+                        vehicleId = savedVehicle.id;
+                    }
+                } else if (supabaseClient) {
+                    // إذا لم يكن ConnectionMonitor متاحاً، استخدم Supabase مباشرة
+                    if (!currentVehicleId) {
+                        data.user_id = currentUser.id;
+                        data.created_at = new Date().toISOString();
+                        data.deleted = false;
+                        
+                        const { data: insertedData, error: insertError } = await supabaseClient
+                            .from('vehicles')
+                            .insert(data)
+                            .select()
+                            .single();
+                        
+                        if (insertError) throw insertError;
+                        vehicleId = insertedData.id;
+                        savedVehicle = insertedData;
+                    }
+                } else if (window.OfflineStorage) {
+                    // استخدام التخزين المحلي فقط
+                    if (isEdit) {
+                        savedVehicle = await OfflineStorage.Vehicles.update(vehicleId, data);
+                    } else {
+                        savedVehicle = await OfflineStorage.Vehicles.create({
+                            ...data,
+                            user_id: currentUser.id
+                        });
+                        vehicleId = savedVehicle.id;
+                    }
+                    showNotification('تم الحفظ محلياً (وضع عدم الاتصال)', 'warning');
                 }
                 
-                // Upload images to Supabase Storage if there are any
-                if (pendingImages.length > 0) {
+                // Upload images to Supabase Storage if there are any and online
+                if (pendingImages.length > 0 && navigator.onLine && supabaseClient) {
                     showLoading('جاري رفع الصور إلى السحابة...');
                     const uploadedImages = [];
                     
                     for (let i = 0; i < pendingImages.length; i++) {
-                        const imageUrl = await uploadImageToStorage(pendingImages[i], vehicleId, i);
-                        uploadedImages.push(imageUrl);
+                        try {
+                            const imageUrl = await uploadImageToStorage(pendingImages[i], vehicleId, i);
+                            uploadedImages.push(imageUrl);
+                        } catch (imgError) {
+                            console.warn('Image upload error:', imgError);
+                            // حفظ الصورة كـ base64 في حالة الفشل
+                            uploadedImages.push(pendingImages[i]);
+                        }
                     }
                     
                     data.images = uploadedImages;
                 }
                 
                 // Update the vehicle with image URLs if editing or images were uploaded
-                if (isEdit || pendingImages.length > 0) {
+                if ((isEdit || pendingImages.length > 0) && supabaseClient && navigator.onLine) {
                     const { error: updateError } = await supabaseClient
                         .from('vehicles')
                         .update({
@@ -2295,11 +2435,35 @@
                     });
                 }
                 
+                await loadVehicles();
                 showNotification(isEdit ? 'تم تحديث المركبة بنجاح' : 'تم إضافة المركبة بنجاح', 'success');
                 closeModal();
                 hideLoading();
             } catch (error) {
                 console.error('Save Error:', error);
+                
+                // محاولة الحفظ محلياً عند فشل الاتصال
+                if (window.OfflineStorage && currentUser) {
+                    try {
+                        const isEdit = !!currentVehicleId;
+                        if (isEdit) {
+                            await OfflineStorage.Vehicles.update(currentVehicleId, data);
+                        } else {
+                            await OfflineStorage.Vehicles.create({
+                                ...data,
+                                user_id: currentUser.id
+                            });
+                        }
+                        await loadVehicles();
+                        showNotification('تم الحفظ محلياً - سيتم المزامنة عند عودة الاتصال', 'warning');
+                        closeModal();
+                        hideLoading();
+                        return;
+                    } catch (offlineError) {
+                        console.error('Offline save error:', offlineError);
+                    }
+                }
+                
                 hideLoading();
                 showNotification('خطأ في الحفظ: ' + error.message, 'error');
             }
@@ -2338,29 +2502,34 @@
         }
 
         async function deleteVehicle() {
-            // Ensure Supabase client is initialized
-            if (!supabaseClient) {
-                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
-                return;
-            }
-            
             showLoading('جاري الحذف...');
             
             try {
                 // Get vehicle info before deleting
                 const vehicle = vehicles.find(v => v.id === currentVehicleId);
                 
-                // Soft delete - update deleted flag
-                const { error } = await supabaseClient
-                    .from('vehicles')
-                    .update({ 
-                        deleted: true,
-                        updated_at: new Date().toISOString()
-                    })
-                    .eq('id', currentVehicleId)
-                    .eq('user_id', currentUser.id);
-                
-                if (error) throw error;
+                // محاولة استخدام ConnectionMonitor أولاً
+                if (window.ConnectionMonitor) {
+                    await ConnectionMonitor.deleteVehicle(currentUser.id, currentVehicleId);
+                } else if (supabaseClient && navigator.onLine) {
+                    // Soft delete - update deleted flag
+                    const { error } = await supabaseClient
+                        .from('vehicles')
+                        .update({ 
+                            deleted: true,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', currentVehicleId)
+                        .eq('user_id', currentUser.id);
+                    
+                    if (error) throw error;
+                } else if (window.OfflineStorage) {
+                    // الحذف من التخزين المحلي
+                    await OfflineStorage.Vehicles.delete(currentVehicleId);
+                    showNotification('تم الحذف محلياً - سيتم المزامنة عند عودة الاتصال', 'warning');
+                } else {
+                    throw new Error('لا يوجد اتصال ولا يمكن الحذف');
+                }
                 
                 // Log activity
                 if (window.NFActivity && vehicle) {
@@ -3413,6 +3582,35 @@
                 NFStats.update('nf-enhanced-stats', vehicles);
             }
         };
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.warn('⚠️ Service Worker registration failed:', error);
+                    });
+            });
+        }
+        
+        // Listen for connection changes
+        if (window.ConnectionMonitor) {
+            ConnectionMonitor.addListener((event, status) => {
+                console.log('Connection status:', event, status);
+                if (event === 'synced') {
+                    // إعادة تحميل البيانات بعد المزامنة
+                    loadVehicles();
+                }
+            });
+        }
     </script>
+    
+    <!-- Connection Indicator -->
+    <div id="connection-indicator" class="connection-indicator online">
+        <i class="fas fa-wifi"></i> <span>متصل</span>
+    </div>
 </body>
 </html>

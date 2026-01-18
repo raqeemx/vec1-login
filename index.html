@@ -15,6 +15,10 @@
     <link rel="stylesheet" href="css/new-features/dark-mode.css">
     <link rel="stylesheet" href="css/new-features/notifications.css">
     <link rel="stylesheet" href="css/new-features/validation.css">
+    <link rel="stylesheet" href="css/new-features/offline-mode.css">
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
     
     <style>
         * {
@@ -880,7 +884,7 @@
         </div>
 
         <div class="auth-footer">
-            <p>© 2024 نظام تقييم المركبات المستردة - الإصدار 6.0 Supabase</p>
+            <p>© 2024 نظام تقييم المركبات المستردة - الإصدار 7.0 Offline</p>
         </div>
     </div>
 
@@ -893,7 +897,7 @@
 
     <!-- Version Badge -->
     <div class="version-badge">
-        <i class="fas fa-code-branch"></i> v6.0 Supabase
+        <i class="fas fa-code-branch"></i> v7.0 Offline
     </div>
 
     <!-- Supabase SDK -->
@@ -944,27 +948,61 @@
         // ========================================
         async function checkAuthState() {
             try {
-                if (!supabaseClient) {
-                    console.error('Supabase client not initialized');
-                    return;
+                // محاولة التحقق من Supabase أولاً
+                if (supabaseClient && navigator.onLine) {
+                    const { data: { session } } = await supabaseClient.auth.getSession();
+                    
+                    if (session && session.user) {
+                        console.log('User already signed in, redirecting to dashboard...');
+                        // حفظ الجلسة محلياً
+                        if (window.OfflineStorage) {
+                            await OfflineStorage.Users.saveSession(session);
+                        }
+                        showLoading('جاري التحويل للوحة التحكم...');
+                        setTimeout(() => {
+                            window.location.replace('dashboard.html');
+                        }, 800);
+                        return;
+                    }
                 }
-                const { data: { session } } = await supabaseClient.auth.getSession();
                 
-                if (session && session.user) {
-                    console.log('User already signed in, redirecting to dashboard...');
-                    showLoading('جاري التحويل للوحة التحكم...');
-                    setTimeout(() => {
-                        window.location.replace('dashboard.html');
-                    }, 800);
-                } else {
-                    console.log('User not signed in - showing login page');
-                    hideLoading();
-                    disableButtons(false);
+                // التحقق من الجلسة المحلية (للوضع Offline)
+                if (window.OfflineStorage && !navigator.onLine) {
+                    const offlineSession = OfflineStorage.Users.getSession();
+                    if (offlineSession && offlineSession.user) {
+                        console.log('Found offline session, redirecting to dashboard...');
+                        showLoading('جاري التحويل للوحة التحكم (وضع عدم الاتصال)...');
+                        setTimeout(() => {
+                            window.location.replace('dashboard.html');
+                        }, 800);
+                        return;
+                    }
+                    
+                    // لا توجد جلسة محلية وغير متصل
+                    showAlert('أنت غير متصل بالإنترنت. يرجى الاتصال لتسجيل الدخول.', 'warning');
                 }
+                
+                console.log('User not signed in - showing login page');
+                hideLoading();
+                disableButtons(false);
                 
                 authCheckComplete = true;
             } catch (error) {
                 console.error('Auth check error:', error);
+                
+                // محاولة التحقق من الجلسة المحلية
+                if (window.OfflineStorage) {
+                    const offlineSession = OfflineStorage.Users.getSession();
+                    if (offlineSession && offlineSession.user) {
+                        console.log('Network error but found offline session, redirecting...');
+                        showLoading('جاري التحويل للوحة التحكم...');
+                        setTimeout(() => {
+                            window.location.replace('dashboard.html');
+                        }, 800);
+                        return;
+                    }
+                }
+                
                 hideLoading();
                 disableButtons(false);
             }
@@ -1358,6 +1396,10 @@
         }
     </script>
 
+    <!-- Offline Support JS -->
+    <script src="js/offline-storage.js"></script>
+    <script src="js/connection-monitor.js"></script>
+    
     <!-- New Features JS -->
     <script src="js/dark-mode-toggle.js"></script>
     <script src="js/enhanced-notifications.js"></script>
@@ -1392,6 +1434,24 @@
                 }
             };
         });
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.warn('⚠️ Service Worker registration failed:', error);
+                    });
+            });
+        }
     </script>
+    
+    <!-- Connection Indicator -->
+    <div id="connection-indicator" class="connection-indicator online">
+        <i class="fas fa-wifi"></i> <span>متصل</span>
+    </div>
 </body>
 </html>

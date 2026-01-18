@@ -17,6 +17,14 @@
     <!-- Supabase Config -->
     <script src="js/supabase-config.js"></script>
     
+    <!-- Offline Support -->
+    <script src="js/offline-storage.js"></script>
+    <script src="js/connection-monitor.js"></script>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="manifest.json">
+    <link rel="stylesheet" href="css/new-features/offline-mode.css">
+    
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
         
@@ -717,6 +725,24 @@
         document.getElementById('lightbox').addEventListener('click', (e) => {
             if (e.target.id === 'lightbox') closeLightbox();
         });
+        
+        // Register Service Worker
+        if ('serviceWorker' in navigator) {
+            window.addEventListener('load', () => {
+                navigator.serviceWorker.register('/sw.js')
+                    .then(registration => {
+                        console.log('✅ Service Worker registered:', registration.scope);
+                    })
+                    .catch(error => {
+                        console.warn('⚠️ Service Worker registration failed:', error);
+                    });
+            });
+        }
     </script>
+    
+    <!-- Connection Indicator -->
+    <div id="connection-indicator" class="connection-indicator online">
+        <i class="fas fa-wifi"></i> <span>متصل</span>
+    </div>
 </body>
 </html>

@@ -701,5 +701,74 @@ window.debugSupabase = function() {
     console.log('Init attempts:', _initAttempts);
     console.log('URL:', SUPABASE_URL);
     console.log('Library loaded:', typeof window.supabase !== 'undefined');
+    console.log('Online:', navigator.onLine);
     console.log('===========================');
 };
+
+// ========================================
+// Network-aware wrapper functions
+// ========================================
+
+/**
+ * Check if we can connect to Supabase
+ * @returns {Promise<boolean>}
+ */
+window.canConnectToSupabase = async function() {
+    if (!navigator.onLine) return false;
+    if (!isSupabaseInitialized()) return false;
+    
+    try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 5000);
+        
+        const response = await fetch(SUPABASE_URL + '/rest/v1/', {
+            method: 'HEAD',
+            signal: controller.signal
+        });
+        
+        clearTimeout(timeoutId);
+        return response.ok || response.status === 400;
+    } catch (error) {
+        return false;
+    }
+};
+
+/**
+ * Get data with offline fallback
+ * @param {string} table - Table name
+ * @param {string} userId - User ID
+ * @returns {Promise<Array>}
+ */
+window.getDataWithOfflineFallback = async function(table, userId) {
+    // Try Supabase first
+    if (navigator.onLine && isSupabaseInitialized()) {
+        try {
+            const client = getSupabaseClient();
+            const { data, error } = await client
+                .from(table)
+                .select('*')
+                .eq('user_id', userId)
+                .eq('deleted', false)
+                .order('created_at', { ascending: false });
+            
+            if (!error && data) {
+                // Save to offline storage
+                if (window.OfflineStorage && window.OfflineStorage[table]) {
+                    await window.OfflineStorage[table].saveAll(data);
+                }
+                return data;
+            }
+        } catch (error) {
+            console.warn('Supabase fetch failed, trying offline:', error);
+        }
+    }
+    
+    // Fallback to offline storage
+    if (window.OfflineStorage && window.OfflineStorage.Vehicles) {
+        return await window.OfflineStorage.Vehicles.getAll(userId);
+    }
+    
+    return [];
+};
+
+console.log('[Supabase Config] v7.0 with Offline Support loaded');
