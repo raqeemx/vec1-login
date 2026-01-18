@@ -1,0 +1,51 @@
+{
+    "name": "نظام تقييم المركبات المستردة",
+    "short_name": "تقييم المركبات",
+    "description": "نظام متكامل لتقييم وإدارة المركبات المستردة مع دعم العمل بدون إنترنت",
+    "lang": "ar",
+    "dir": "rtl",
+    "start_url": "/index.html",
+    "scope": "/",
+    "display": "standalone",
+    "orientation": "any",
+    "background_color": "#667eea",
+    "theme_color": "#667eea",
+    "categories": ["business", "utilities"],
+    "icons": [
+        {
+            "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><rect fill='%23667eea' width='100' height='100' rx='20'/><text x='50' y='65' font-size='50' text-anchor='middle' fill='white'>🚗</text></svg>",
+            "sizes": "512x512",
+            "type": "image/svg+xml",
+            "purpose": "any maskable"
+        }
+    ],
+    "screenshots": [],
+    "related_applications": [],
+    "prefer_related_applications": false,
+    "shortcuts": [
+        {
+            "name": "لوحة التحكم",
+            "short_name": "لوحة التحكم",
+            "description": "الوصول السريع للوحة التحكم",
+            "url": "/dashboard.html",
+            "icons": []
+        },
+        {
+            "name": "إضافة مركبة",
+            "short_name": "إضافة",
+            "description": "إضافة مركبة جديدة",
+            "url": "/dashboard.html#add",
+            "icons": []
+        }
+    ],
+    "features": [
+        "Cross-Platform",
+        "Offline Support",
+        "Push Notifications"
+    ],
+    "serviceworker": {
+        "src": "/sw.js",
+        "scope": "/",
+        "update_via_cache": "none"
+    }
+}
