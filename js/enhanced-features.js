@@ -807,7 +807,7 @@ window.NFWarehouseEnhanced = (function() {
 window.NFExcelExport = (function() {
     'use strict';
     
-    // Export with GPS links and photo album links
+    // Export with GPS links and individual photo links (one column per photo)
     function exportAllToExcel(vehicles) {
         if (!vehicles || vehicles.length === 0) {
             if (window.showNotification) {
@@ -826,6 +826,26 @@ window.NFExcelExport = (function() {
         try {
             const wb = XLSX.utils.book_new();
             
+            // Find the maximum number of images across all vehicles
+            let maxImages = 0;
+            vehicles.forEach(v => {
+                if (v.images && Array.isArray(v.images)) {
+                    // Filter only valid URLs (http/https)
+                    const validImages = v.images.filter(img => img && typeof img === 'string' && img.startsWith('http'));
+                    if (validImages.length > maxImages) {
+                        maxImages = validImages.length;
+                    }
+                }
+            });
+            
+            // Count total images for statistics
+            let totalImages = 0;
+            vehicles.forEach(v => {
+                if (v.images && Array.isArray(v.images)) {
+                    totalImages += v.images.filter(img => img && typeof img === 'string' && img.startsWith('http')).length;
+                }
+            });
+            
             // Summary sheet
             const totalValue = vehicles.reduce((sum, v) => sum + (parseFloat(v.marketValue) || 0), 0);
             const summaryData = [
@@ -833,25 +853,34 @@ window.NFExcelExport = (function() {
                 [`تاريخ التقرير: ${new Date().toLocaleString('ar-SA')}`],
                 [`إجمالي المركبات: ${vehicles.length}`],
                 [`إجمالي القيمة: ${totalValue.toLocaleString()} ر.س`],
+                [`إجمالي الصور: ${totalImages}`],
                 [''],
                 ['💡 ملاحظات مهمة:'],
                 ['- عمود "Open Map" يحتوي على روابط لفتح موقع المركبة في خرائط Google'],
-                ['- عمود "Photos Album" يحتوي على روابط لعرض صور المركبة'],
+                ['- أعمدة "صورة 1"، "صورة 2"، إلخ تحتوي على روابط مباشرة للصور'],
                 ['- اضغط على الروابط لفتحها في المتصفح']
             ];
             
             const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
             XLSX.utils.book_append_sheet(wb, summarySheet, 'ملخص');
             
-            // Headers for main sheet
-            const headers = [
+            // Base headers for main sheet
+            const baseHeaders = [
                 'رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 
                 'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود',
                 'القيمة السوقية', 'التقييم', 'التوصية', 'حالة التشغيل', 
                 'المستودع', 'تاريخ الاسترداد', 'موقع الاسترداد',
                 'القائم بالتقييم', 'ملاحظات',
-                'Open Map', 'Photos Album'
+                'Open Map'
             ];
+            
+            // Add dynamic photo columns based on max images
+            const photoHeaders = [];
+            for (let i = 1; i <= maxImages; i++) {
+                photoHeaders.push(`صورة ${i}`);
+            }
+            
+            const headers = [...baseHeaders, ...photoHeaders];
             
             // Helper functions
             function getFuelText(type) {
@@ -874,6 +903,12 @@ window.NFExcelExport = (function() {
                 return statuses[status] || '-';
             }
             
+            // Get valid image URLs (only http/https)
+            function getValidImageUrls(images) {
+                if (!images || !Array.isArray(images)) return [];
+                return images.filter(img => img && typeof img === 'string' && img.startsWith('http'));
+            }
+            
             // Data rows
             const data = vehicles.map(v => {
                 // Generate Google Maps URL
@@ -882,11 +917,11 @@ window.NFExcelExport = (function() {
                     mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
                 }
                 
-                // Generate album URL
-                const albumUrl = v.images && v.images.length > 0 ? 
-                    (v.images[0] || '') : '';
+                // Get valid image URLs
+                const validImages = getValidImageUrls(v.images);
                 
-                return [
+                // Base row data
+                const rowData = [
                     v.contractNo || '',
                     v.customerName || '',
                     v.make || '',
@@ -906,56 +941,78 @@ window.NFExcelExport = (function() {
                     v.recoveryLocation || '',
                     v.evaluatorName || '',
                     v.notes || '',
-                    mapsUrl,
-                    albumUrl
+                    mapsUrl
                 ];
+                
+                // Add image URLs to separate columns
+                for (let i = 0; i < maxImages; i++) {
+                    rowData.push(validImages[i] || '');
+                }
+                
+                return rowData;
             });
             
             const vehiclesSheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
             
             // Set column widths
-            vehiclesSheet['!cols'] = [
+            const colWidths = [
                 { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
                 { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
                 { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
                 { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 25 },
-                { wch: 50 }, { wch: 50 }
+                { wch: 50 }  // Open Map column
             ];
             
-            // Add hyperlinks for Maps and Photos columns
+            // Add widths for image columns
+            for (let i = 0; i < maxImages; i++) {
+                colWidths.push({ wch: 60 });  // Wide columns for image URLs
+            }
+            
+            vehiclesSheet['!cols'] = colWidths;
+            
+            // Add hyperlinks for Maps and Photo columns
+            const mapsColIndex = 19;  // Open Map column index
+            const firstPhotoColIndex = 20;  // First photo column index
+            
             vehicles.forEach((v, index) => {
-                const rowNum = index + 2; // +2 because row 1 is headers
+                const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1-indexed + header row)
                 
-                // Maps link - Column T (index 19)
+                // Maps link
                 if (v.gpsLatitude && v.gpsLongitude) {
                     const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
-                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 19 });
+                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: mapsColIndex });
                     if (vehiclesSheet[cellRef]) {
                         vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
                     }
                 }
                 
-                // Photo link - Column U (index 20)
-                if (v.images && v.images.length > 0 && v.images[0]) {
-                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 20 });
-                    if (vehiclesSheet[cellRef]) {
-                        vehiclesSheet[cellRef].l = { Target: v.images[0], Tooltip: 'انقر لعرض الصور' };
+                // Photo links - add hyperlink to each photo column
+                const validImages = getValidImageUrls(v.images);
+                validImages.forEach((imgUrl, imgIndex) => {
+                    const colIndex = firstPhotoColIndex + imgIndex;
+                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
+                    if (vehiclesSheet[cellRef] && imgUrl) {
+                        vehiclesSheet[cellRef].l = { Target: imgUrl, Tooltip: `انقر لعرض الصورة ${imgIndex + 1}` };
                     }
-                }
+                });
             });
             
             XLSX.utils.book_append_sheet(wb, vehiclesSheet, 'المركبات');
             
             // Log activity
             if (window.NFActivity) {
-                NFActivity.log('EXPORT_EXCEL', { count: vehicles.length });
+                NFActivity.log('EXPORT_EXCEL', { 
+                    count: vehicles.length,
+                    totalImages: totalImages 
+                });
             }
             
             const date = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(wb, `Vehicles_Export_${date}.xlsx`);
+            const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+            XLSX.writeFile(wb, `Vehicles_Export_${date}_${time}.xlsx`);
             
             if (window.showNotification) {
-                showNotification(`تم تصدير ${vehicles.length} مركبة بنجاح! 📊`, 'success');
+                showNotification(`تم تصدير ${vehicles.length} مركبة و ${totalImages} صورة بنجاح! 📊`, 'success');
             }
             
             return true;
@@ -968,7 +1025,7 @@ window.NFExcelExport = (function() {
         }
     }
     
-    console.log('📊 NFExcelExport initialized');
+    console.log('📊 NFExcelExport initialized - Individual photo columns enabled');
     
     return {
         exportAllToExcel

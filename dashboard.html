@@ -1099,10 +1099,7 @@
                     <i class="fas fa-file-code"></i>
                     <span>تصدير JSON</span>
                 </div>
-                <div class="menu-item" onclick="exportImagesOnly()">
-                    <i class="fas fa-images"></i>
-                    <span>تصدير روابط الصور</span>
-                </div>
+
                 <div class="menu-item" onclick="document.getElementById('importFile').click()">
                     <i class="fas fa-file-import"></i>
                     <span>استيراد بيانات</span>
@@ -2474,6 +2471,19 @@
                 const notWorkingCount = vehicles.filter(v => v.operationStatus === 'not_working').length;
                 const maintenanceCount = vehicles.filter(v => v.operationStatus === 'needs_maintenance').length;
                 
+                // Find the maximum number of images across all vehicles
+                let maxImages = 0;
+                let totalImagesCount = 0;
+                vehicles.forEach(v => {
+                    if (v.images && Array.isArray(v.images)) {
+                        const validImages = v.images.filter(img => img && typeof img === 'string' && img.startsWith('http'));
+                        if (validImages.length > maxImages) {
+                            maxImages = validImages.length;
+                        }
+                        totalImagesCount += validImages.length;
+                    }
+                });
+                
                 // Summary sheet with comprehensive statistics
                 const summaryData = [
                     ['📊 تقرير المركبات المستردة'],
@@ -2486,6 +2496,7 @@
                     [`إجمالي المركبات:`, vehicles.length],
                     [`إجمالي القيمة السوقية:`, `${totalValue.toLocaleString()} ر.س`],
                     [`متوسط القيمة:`, `${Math.round(totalValue / vehicles.length).toLocaleString()} ر.س`],
+                    [`إجمالي الصور:`, totalImagesCount],
                     [''],
                     ['🔧 حالة التشغيل'],
                     [`تعمل:`, workingCount],
@@ -2494,7 +2505,7 @@
                     [''],
                     ['💡 ملاحظات مهمة:'],
                     ['', '- عمود "Open Map" يحتوي على روابط لفتح موقع المركبة في خرائط Google'],
-                    ['', '- عمود "Photos Album" يحتوي على رابط الصورة الأولى للمركبة'],
+                    ['', '- أعمدة "صورة 1"، "صورة 2"، إلخ تحتوي على روابط مباشرة للصور'],
                     ['', '- اضغط على الروابط لفتحها مباشرة في المتصفح'],
                     ['', '- الصور المرفوعة حديثاً ستحتوي على روابط قابلة للنقر']
                 ];
@@ -2503,15 +2514,29 @@
                 summarySheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
                 XLSX.utils.book_append_sheet(wb, summarySheet, 'ملخص');
                 
-                // Vehicles data sheet with GPS and images
-                const headers = [
+                // Base headers for main sheet (without Photos Album)
+                const baseHeaders = [
                     '#', 'رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 
                     'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود',
                     'القيمة السوقية (ر.س)', 'التقييم العام', 'التوصية', 'حالة التشغيل', 
                     'المستودع', 'تاريخ الاسترداد', 'موقع الاسترداد',
                     'القائم بالتقييم', 'ملاحظات',
-                    'Open Map', 'Photos Album'
+                    'Open Map'
                 ];
+                
+                // Add dynamic photo columns based on max images
+                const photoHeaders = [];
+                for (let i = 1; i <= maxImages; i++) {
+                    photoHeaders.push(`صورة ${i}`);
+                }
+                
+                const headers = [...baseHeaders, ...photoHeaders];
+                
+                // Helper function to get valid image URLs
+                function getValidImageUrls(images) {
+                    if (!images || !Array.isArray(images)) return [];
+                    return images.filter(img => img && typeof img === 'string' && img.startsWith('http'));
+                }
                 
                 const data = vehicles.map((v, index) => {
                     // Generate Google Maps URL
@@ -2520,22 +2545,11 @@
                         mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
                     }
                     
-                    // Photo URL - use first image directly (Firebase URL or data URL)
-                    // This ensures the link is clickable and opens the image directly
-                    let photoUrl = '';
-                    if (v.images && v.images.length > 0 && v.images[0]) {
-                        // If it's a Firebase URL (starts with https://), use it directly
-                        // If it's a data URL (base64), we'll show count instead
-                        const firstImage = v.images[0];
-                        if (firstImage.startsWith('https://') || firstImage.startsWith('http://')) {
-                            photoUrl = firstImage;
-                        } else {
-                            // For base64 images, show image count info
-                            photoUrl = `${v.images.length} صورة مرفقة`;
-                        }
-                    }
+                    // Get valid image URLs
+                    const validImages = getValidImageUrls(v.images);
                     
-                    return [
+                    // Base row data
+                    const rowData = [
                         index + 1,
                         v.contractNo || '',
                         v.customerName || '',
@@ -2556,182 +2570,64 @@
                         v.recoveryLocation || '',
                         v.evaluatorName || '',
                         v.notes || '',
-                        mapsUrl,
-                        photoUrl
+                        mapsUrl
                     ];
+                    
+                    // Add image URLs to separate columns
+                    for (let i = 0; i < maxImages; i++) {
+                        rowData.push(validImages[i] || '');
+                    }
+                    
+                    return rowData;
                 });
                 
                 const vehiclesSheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
                 
                 // Set column widths
-                vehiclesSheet['!cols'] = [
+                const colWidths = [
                     { wch: 5 },  // #
                     { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
                     { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
                     { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
                     { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 25 },
-                    { wch: 50 }, { wch: 50 }
+                    { wch: 50 }  // Open Map column
                 ];
                 
-                // Add hyperlinks for Maps and Photos columns
+                // Add widths for image columns
+                for (let i = 0; i < maxImages; i++) {
+                    colWidths.push({ wch: 60 });
+                }
+                
+                vehiclesSheet['!cols'] = colWidths;
+                
+                // Add hyperlinks for Maps and Photo columns
+                const mapsColIndex = 20;  // Open Map column index (after #)
+                const firstPhotoColIndex = 21;  // First photo column index
+                
                 vehicles.forEach((v, index) => {
                     const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1)
                     
-                    // Maps link - Column U (index 20)
+                    // Maps link
                     if (v.gpsLatitude && v.gpsLongitude) {
                         const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
-                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 20 });
+                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: mapsColIndex });
                         if (vehiclesSheet[cellRef]) {
                             vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
                         }
                     }
                     
-                    // Photo link - Column V (index 21) - Only for web URLs
-                    if (v.images && v.images.length > 0 && v.images[0]) {
-                        const firstImage = v.images[0];
-                        // Only add hyperlink if it's a valid web URL (not base64)
-                        if (firstImage.startsWith('https://') || firstImage.startsWith('http://')) {
-                            const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 21 });
-                            if (vehiclesSheet[cellRef]) {
-                                vehiclesSheet[cellRef].l = { Target: firstImage, Tooltip: 'انقر لعرض الصورة' };
-                            }
+                    // Photo links - add hyperlink to each photo column
+                    const validImages = getValidImageUrls(v.images);
+                    validImages.forEach((imgUrl, imgIndex) => {
+                        const colIndex = firstPhotoColIndex + imgIndex;
+                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
+                        if (vehiclesSheet[cellRef] && imgUrl) {
+                            vehiclesSheet[cellRef].l = { Target: imgUrl, Tooltip: `انقر لعرض الصورة ${imgIndex + 1}` };
                         }
-                    }
+                    });
                 });
                 
                 XLSX.utils.book_append_sheet(wb, vehiclesSheet, 'المركبات');
-                
-                // ============================================
-                // NEW: Photos Links Sheet - ورقة روابط الصور
-                // ============================================
-                const photosHeaders = [
-                    '#', 'رقم العقد', 'المركبة', 'عدد الصور', 
-                    'صورة 1', 'صورة 2', 'صورة 3', 'صورة 4', 'صورة 5',
-                    'رابط جميع الصور'
-                ];
-                
-                // Collect all vehicles with images
-                const vehiclesWithImages = vehicles.filter(v => v.images && v.images.length > 0);
-                let totalImagesCount = 0;
-                
-                const photosData = vehiclesWithImages.map((v, index) => {
-                    const vehicleTitle = `${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim() || 'غير محدد';
-                    const webImages = (v.images || []).filter(img => 
-                        img && (img.startsWith('https://') || img.startsWith('http://'))
-                    );
-                    totalImagesCount += webImages.length;
-                    
-                    // Create combined link for all images (separated by newlines for easy copy)
-                    const allImagesLink = webImages.length > 0 ? webImages.join('\n') : '';
-                    
-                    return [
-                        index + 1,
-                        v.contractNo || '-',
-                        vehicleTitle,
-                        webImages.length,
-                        webImages[0] || '',
-                        webImages[1] || '',
-                        webImages[2] || '',
-                        webImages[3] || '',
-                        webImages[4] || '',
-                        webImages.length > 0 ? `${webImages.length} صورة - انظر الأعمدة` : 'لا توجد روابط'
-                    ];
-                });
-                
-                // Add summary row at the end
-                photosData.push([]);
-                photosData.push(['الإجمالي', '', '', totalImagesCount, '', '', '', '', '', `${totalImagesCount} صورة إجمالي`]);
-                
-                const photosSheet = XLSX.utils.aoa_to_sheet([photosHeaders, ...photosData]);
-                
-                // Set column widths for photos sheet
-                photosSheet['!cols'] = [
-                    { wch: 5 },   // #
-                    { wch: 15 },  // رقم العقد
-                    { wch: 25 },  // المركبة
-                    { wch: 10 },  // عدد الصور
-                    { wch: 60 },  // صورة 1
-                    { wch: 60 },  // صورة 2
-                    { wch: 60 },  // صورة 3
-                    { wch: 60 },  // صورة 4
-                    { wch: 60 },  // صورة 5
-                    { wch: 30 }   // رابط جميع الصور
-                ];
-                
-                // Add hyperlinks to photo columns
-                vehiclesWithImages.forEach((v, index) => {
-                    const rowNum = index + 2; // +2 for header and 0-index
-                    const webImages = (v.images || []).filter(img => 
-                        img && (img.startsWith('https://') || img.startsWith('http://'))
-                    );
-                    
-                    // Add hyperlinks for each image column (columns 4-8, which are indices 4-8)
-                    webImages.forEach((imgUrl, imgIndex) => {
-                        if (imgIndex < 5) { // Max 5 images
-                            const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 4 + imgIndex });
-                            if (photosSheet[cellRef]) {
-                                photosSheet[cellRef].l = { 
-                                    Target: imgUrl, 
-                                    Tooltip: `صورة ${imgIndex + 1} - انقر للعرض` 
-                                };
-                            }
-                        }
-                    });
-                });
-                
-                XLSX.utils.book_append_sheet(wb, photosSheet, 'روابط الصور');
-                
-                // ============================================
-                // NEW: All Images List Sheet - قائمة جميع الصور
-                // ============================================
-                const allImagesHeaders = ['#', 'رقم العقد', 'المركبة', 'رقم الصورة', 'رابط الصورة'];
-                const allImagesData = [];
-                let imageCounter = 0;
-                
-                vehicles.forEach(v => {
-                    const vehicleTitle = `${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim() || 'غير محدد';
-                    const webImages = (v.images || []).filter(img => 
-                        img && (img.startsWith('https://') || img.startsWith('http://'))
-                    );
-                    
-                    webImages.forEach((imgUrl, imgIndex) => {
-                        imageCounter++;
-                        allImagesData.push([
-                            imageCounter,
-                            v.contractNo || '-',
-                            vehicleTitle,
-                            imgIndex + 1,
-                            imgUrl
-                        ]);
-                    });
-                });
-                
-                if (allImagesData.length > 0) {
-                    const allImagesSheet = XLSX.utils.aoa_to_sheet([allImagesHeaders, ...allImagesData]);
-                    
-                    allImagesSheet['!cols'] = [
-                        { wch: 5 },   // #
-                        { wch: 15 },  // رقم العقد
-                        { wch: 25 },  // المركبة
-                        { wch: 10 },  // رقم الصورة
-                        { wch: 80 }   // رابط الصورة
-                    ];
-                    
-                    // Add hyperlinks to all image URLs
-                    allImagesData.forEach((row, index) => {
-                        const rowNum = index + 2; // +2 for header and 0-index
-                        const imgUrl = row[4];
-                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 4 });
-                        if (allImagesSheet[cellRef] && imgUrl) {
-                            allImagesSheet[cellRef].l = { 
-                                Target: imgUrl, 
-                                Tooltip: 'انقر لفتح الصورة' 
-                            };
-                        }
-                    });
-                    
-                    XLSX.utils.book_append_sheet(wb, allImagesSheet, 'كل الصور');
-                }
                 
                 // Log activity
                 if (window.NFActivity) {
@@ -2782,212 +2678,6 @@
             URL.revokeObjectURL(url);
             
             showNotification(`تم تصدير ${vehicles.length} مركبة كـ JSON`, 'success');
-        }
-        
-        // ============================================
-        // Export Images Only - تصدير روابط الصور فقط
-        // ============================================
-        function exportImagesOnly() {
-            if (!vehicles || vehicles.length === 0) {
-                showNotification('لا توجد مركبات', 'warning');
-                return;
-            }
-            
-            // Collect all images
-            const allImages = [];
-            let vehiclesWithImages = 0;
-            
-            vehicles.forEach(v => {
-                const vehicleTitle = `${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim() || 'غير محدد';
-                const webImages = (v.images || []).filter(img => 
-                    img && (img.startsWith('https://') || img.startsWith('http://'))
-                );
-                
-                if (webImages.length > 0) {
-                    vehiclesWithImages++;
-                    webImages.forEach((imgUrl, index) => {
-                        allImages.push({
-                            contractNo: v.contractNo || '-',
-                            vehicle: vehicleTitle,
-                            imageNumber: index + 1,
-                            url: imgUrl
-                        });
-                    });
-                }
-            });
-            
-            if (allImages.length === 0) {
-                showNotification('لا توجد صور مرفوعة للتصدير', 'warning');
-                return;
-            }
-            
-            // Create export options modal
-            const modalHTML = `
-                <div class="modal show" id="exportImagesModal" onclick="if(event.target===this)this.remove()">
-                    <div class="modal-content" style="max-width: 500px;">
-                        <div class="modal-header">
-                            <h3><i class="fas fa-images" style="margin-left: 10px; color: var(--primary);"></i>تصدير روابط الصور</h3>
-                            <button class="btn-close" onclick="document.getElementById('exportImagesModal').remove()">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            <div style="background: linear-gradient(135deg, #dbeafe, #e0e7ff); padding: 20px; border-radius: 12px; margin-bottom: 20px; text-align: center;">
-                                <div style="font-size: 2.5rem; color: var(--primary); margin-bottom: 10px;">
-                                    <i class="fas fa-images"></i>
-                                </div>
-                                <div style="font-size: 1.5rem; font-weight: 700; color: var(--dark);">${allImages.length} صورة</div>
-                                <div style="color: #64748b;">من ${vehiclesWithImages} مركبة</div>
-                            </div>
-                            
-                            <p style="margin-bottom: 20px; color: #64748b; text-align: center;">اختر طريقة التصدير:</p>
-                            
-                            <div style="display: flex; flex-direction: column; gap: 12px;">
-                                <button class="btn btn-success" onclick="downloadImagesAsExcel(); document.getElementById('exportImagesModal').remove();" style="justify-content: center; padding: 15px;">
-                                    <i class="fas fa-file-excel"></i>
-                                    تصدير كـ Excel (مع روابط قابلة للنقر)
-                                </button>
-                                <button class="btn btn-info" onclick="downloadImagesAsTxt(); document.getElementById('exportImagesModal').remove();" style="justify-content: center; padding: 15px;">
-                                    <i class="fas fa-file-alt"></i>
-                                    تصدير كـ TXT (روابط فقط)
-                                </button>
-                                <button class="btn btn-warning" onclick="copyAllImagesToClipboard(); document.getElementById('exportImagesModal').remove();" style="justify-content: center; padding: 15px;">
-                                    <i class="fas fa-copy"></i>
-                                    نسخ جميع الروابط
-                                </button>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-outline" onclick="document.getElementById('exportImagesModal').remove()">
-                                <i class="fas fa-times"></i> إغلاق
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-        }
-        
-        // Download images as Excel
-        function downloadImagesAsExcel() {
-            if (typeof XLSX === 'undefined') {
-                showNotification('مكتبة Excel غير متاحة', 'error');
-                return;
-            }
-            
-            const wb = XLSX.utils.book_new();
-            
-            // Collect all images with details
-            const headers = ['#', 'رقم العقد', 'المركبة', 'رقم الصورة', 'رابط الصورة'];
-            const data = [];
-            let counter = 0;
-            
-            vehicles.forEach(v => {
-                const vehicleTitle = `${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim() || 'غير محدد';
-                const webImages = (v.images || []).filter(img => 
-                    img && (img.startsWith('https://') || img.startsWith('http://'))
-                );
-                
-                webImages.forEach((imgUrl, index) => {
-                    counter++;
-                    data.push([counter, v.contractNo || '-', vehicleTitle, index + 1, imgUrl]);
-                });
-            });
-            
-            if (data.length === 0) {
-                showNotification('لا توجد صور للتصدير', 'warning');
-                return;
-            }
-            
-            const ws = XLSX.utils.aoa_to_sheet([headers, ...data]);
-            ws['!cols'] = [{ wch: 5 }, { wch: 15 }, { wch: 25 }, { wch: 10 }, { wch: 80 }];
-            
-            // Add hyperlinks
-            data.forEach((row, index) => {
-                const rowNum = index + 2;
-                const imgUrl = row[4];
-                const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 4 });
-                if (ws[cellRef] && imgUrl) {
-                    ws[cellRef].l = { Target: imgUrl, Tooltip: 'انقر لفتح الصورة' };
-                }
-            });
-            
-            XLSX.utils.book_append_sheet(wb, ws, 'روابط الصور');
-            
-            const date = new Date().toISOString().split('T')[0];
-            XLSX.writeFile(wb, `Images_Links_${date}.xlsx`);
-            
-            showNotification(`✅ تم تصدير ${data.length} رابط صورة بنجاح!`, 'success');
-            
-            // Log activity
-            if (window.NFActivity) {
-                window.NFActivity.log('EXPORT_IMAGES', { count: data.length });
-            }
-        }
-        
-        // Download images as TXT
-        function downloadImagesAsTxt() {
-            const lines = ['=== روابط صور المركبات ===', ''];
-            
-            vehicles.forEach(v => {
-                const vehicleTitle = `${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim() || 'غير محدد';
-                const webImages = (v.images || []).filter(img => 
-                    img && (img.startsWith('https://') || img.startsWith('http://'))
-                );
-                
-                if (webImages.length > 0) {
-                    lines.push(`--- ${vehicleTitle} (${v.contractNo || 'بدون عقد'}) ---`);
-                    webImages.forEach((imgUrl, index) => {
-                        lines.push(`صورة ${index + 1}: ${imgUrl}`);
-                    });
-                    lines.push('');
-                }
-            });
-            
-            if (lines.length <= 2) {
-                showNotification('لا توجد صور للتصدير', 'warning');
-                return;
-            }
-            
-            const blob = new Blob([lines.join('\n')], { type: 'text/plain;charset=utf-8' });
-            const url = URL.createObjectURL(blob);
-            const a = document.createElement('a');
-            a.href = url;
-            a.download = `Images_Links_${new Date().toISOString().split('T')[0]}.txt`;
-            a.click();
-            URL.revokeObjectURL(url);
-            
-            showNotification('✅ تم تصدير روابط الصور كملف نصي!', 'success');
-        }
-        
-        // Copy all images to clipboard
-        async function copyAllImagesToClipboard() {
-            const urls = [];
-            
-            vehicles.forEach(v => {
-                const webImages = (v.images || []).filter(img => 
-                    img && (img.startsWith('https://') || img.startsWith('http://'))
-                );
-                urls.push(...webImages);
-            });
-            
-            if (urls.length === 0) {
-                showNotification('لا توجد صور للنسخ', 'warning');
-                return;
-            }
-            
-            try {
-                await navigator.clipboard.writeText(urls.join('\n'));
-                showNotification(`✅ تم نسخ ${urls.length} رابط صورة إلى الحافظة!`, 'success');
-            } catch (error) {
-                // Fallback for browsers that don't support clipboard API
-                const textarea = document.createElement('textarea');
-                textarea.value = urls.join('\n');
-                document.body.appendChild(textarea);
-                textarea.select();
-                document.execCommand('copy');
-                document.body.removeChild(textarea);
-                showNotification(`✅ تم نسخ ${urls.length} رابط صورة!`, 'success');
-            }
         }
         
         function handleImport(event) {
