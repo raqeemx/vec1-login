@@ -1,0 +1,3418 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="لوحة التحكم - نظام تقييم المركبات المستردة">
+    <meta name="theme-color" content="#667eea">
+    <title>لوحة التحكم - نظام تقييم المركبات</title>
+    
+    <!-- Fonts & Icons -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <!-- New Features CSS -->
+    <link rel="stylesheet" href="css/new-features/dark-mode.css">
+    <link rel="stylesheet" href="css/new-features/notifications.css">
+    <link rel="stylesheet" href="css/new-features/validation.css">
+    <link rel="stylesheet" href="css/new-features/filters.css">
+    <link rel="stylesheet" href="css/new-features/enhanced-stats.css">
+    <link rel="stylesheet" href="css/new-features/activity-warehouse.css">
+    
+    <!-- External Libraries -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- Supabase SDK -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+    
+    <!-- Supabase Config -->
+    <script src="js/supabase-config.js"></script>
+    
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        :root {
+            --primary: #667eea;
+            --primary-dark: #5a67d8;
+            --secondary: #764ba2;
+            --success: #10b981;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --info: #3b82f6;
+            --dark: #1f2937;
+            --sidebar-width: 280px;
+        }
+
+        body {
+            font-family: 'Cairo', sans-serif;
+            background: #f1f5f9;
+            min-height: 100vh;
+        }
+
+        /* Auth Check Loader */
+        #authCheckLoader {
+            position: fixed;
+            inset: 0;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 99999;
+        }
+
+        .loader-content {
+            text-align: center;
+            color: white;
+        }
+
+        .loader-spinner {
+            width: 60px;
+            height: 60px;
+            border: 4px solid rgba(255,255,255,0.3);
+            border-top-color: white;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 20px;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            right: 0;
+            top: 0;
+            width: var(--sidebar-width);
+            height: 100vh;
+            background: white;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.1);
+            z-index: 1000;
+            overflow-y: auto;
+            transition: transform 0.3s ease;
+        }
+
+        .sidebar-header {
+            padding: 30px 20px;
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .sidebar-logo {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+
+        .sidebar-logo i {
+            font-size: 2rem;
+        }
+
+        .sidebar-logo h2 {
+            font-size: 1.3rem;
+            font-weight: 700;
+        }
+
+        .user-info {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 15px;
+            background: rgba(255,255,255,0.1);
+            border-radius: 12px;
+        }
+
+        .user-avatar {
+            width: 50px;
+            height: 50px;
+            background: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            color: var(--primary);
+            font-size: 1.2rem;
+            overflow: hidden;
+        }
+        
+        .user-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .user-details h3 {
+            font-size: 1rem;
+            margin-bottom: 3px;
+        }
+
+        .user-details p {
+            font-size: 0.85rem;
+            opacity: 0.9;
+        }
+
+        .sidebar-menu {
+            padding: 20px 0;
+        }
+
+        .menu-item {
+            padding: 15px 20px;
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            color: #64748b;
+            cursor: pointer;
+            transition: all 0.3s;
+            border-right: 3px solid transparent;
+        }
+
+        .menu-item:hover,
+        .menu-item.active {
+            background: #f8fafc;
+            color: var(--primary);
+            border-right-color: var(--primary);
+        }
+
+        .menu-item i {
+            font-size: 1.2rem;
+            width: 25px;
+        }
+
+        /* Mobile Menu Toggle */
+        .mobile-menu-toggle {
+            display: none;
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 1001;
+            background: var(--primary);
+            color: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        /* Main Content */
+        .main-content {
+            margin-right: var(--sidebar-width);
+            min-height: 100vh;
+            transition: margin 0.3s ease;
+        }
+
+        /* Top Bar */
+        .top-bar {
+            background: white;
+            padding: 20px 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .top-bar h1 {
+            font-size: 1.5rem;
+            color: var(--dark);
+        }
+
+        .top-bar-actions {
+            display: flex;
+            gap: 10px;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+        }
+
+        .btn-primary {
+            background: linear-gradient(135deg, var(--primary), var(--secondary));
+            color: white;
+        }
+
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+        }
+
+        .btn-danger {
+            background: var(--danger);
+            color: white;
+        }
+
+        .btn-success {
+            background: var(--success);
+            color: white;
+        }
+        
+        .btn-info {
+            background: var(--info);
+            color: white;
+        }
+        
+        .btn-warning {
+            background: var(--warning);
+            color: white;
+        }
+        
+        .btn-outline {
+            background: transparent;
+            border: 2px solid #e5e7eb;
+            color: #64748b;
+        }
+        
+        .btn-outline:hover {
+            border-color: var(--primary);
+            color: var(--primary);
+        }
+
+        /* Vehicles Grid */
+        .vehicles-section {
+            padding: 30px;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .vehicles-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .vehicle-card {
+            background: white;
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+            transition: all 0.3s;
+        }
+
+        .vehicle-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+        }
+
+        .vehicle-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 15px;
+        }
+
+        .vehicle-title {
+            font-size: 1.2rem;
+            font-weight: 700;
+            color: var(--dark);
+            margin-bottom: 5px;
+        }
+
+        .vehicle-id {
+            font-size: 0.85rem;
+            color: #64748b;
+        }
+
+        .vehicle-status {
+            padding: 5px 12px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            font-weight: 600;
+        }
+
+        .status-excellent { background: #d1fae5; color: #065f46; }
+        .status-good { background: #dbeafe; color: #1e40af; }
+        .status-fair { background: #fef3c7; color: #92400e; }
+        .status-poor { background: #fee2e2; color: #991b1b; }
+
+        .vehicle-details {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.9rem;
+            color: #64748b;
+        }
+
+        .detail-item i {
+            color: var(--primary);
+            width: 16px;
+        }
+
+        .vehicle-value {
+            padding: 15px;
+            background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+            border-radius: 12px;
+            text-align: center;
+            margin-bottom: 15px;
+        }
+
+        .vehicle-value span {
+            display: block;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+
+        .vehicle-value strong {
+            font-size: 1.3rem;
+            color: var(--primary);
+        }
+
+        .vehicle-actions {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .btn-view, .btn-edit, .btn-delete {
+            padding: 10px;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 600;
+            transition: all 0.3s;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 5px;
+            font-family: inherit;
+        }
+
+        .btn-view { background: #dbeafe; color: #1e40af; }
+        .btn-edit { background: #fef3c7; color: #92400e; }
+        .btn-delete { background: #fee2e2; color: #991b1b; }
+
+        .btn-view:hover, .btn-edit:hover, .btn-delete:hover {
+            transform: scale(1.02);
+        }
+        
+        /* Vehicle Images */
+        .vehicle-images {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            padding-bottom: 5px;
+        }
+        
+        .vehicle-image-thumb {
+            width: 80px;
+            height: 60px;
+            border-radius: 8px;
+            object-fit: cover;
+            cursor: pointer;
+            transition: transform 0.3s;
+            flex-shrink: 0;
+        }
+        
+        .vehicle-image-thumb:hover {
+            transform: scale(1.05);
+        }
+
+        /* Empty State */
+        .empty-state {
+            text-align: center;
+            padding: 60px 20px;
+            color: #94a3b8;
+        }
+
+        .empty-state i {
+            font-size: 4rem;
+            margin-bottom: 20px;
+            opacity: 0.5;
+        }
+
+        .empty-state h3 {
+            font-size: 1.3rem;
+            margin-bottom: 10px;
+            color: #64748b;
+        }
+
+        .empty-state p {
+            margin-bottom: 20px;
+        }
+
+        /* Modal */
+        .modal {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 2000;
+            padding: 20px;
+            backdrop-filter: blur(4px);
+        }
+
+        .modal.show {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 20px;
+            width: 100%;
+            max-width: 600px;
+            max-height: 90vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            padding: 20px 25px;
+            border-bottom: 1px solid #e5e7eb;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            position: sticky;
+            top: 0;
+            background: white;
+            z-index: 10;
+            border-radius: 20px 20px 0 0;
+        }
+
+        .modal-header h3 {
+            font-size: 1.3rem;
+            color: var(--dark);
+        }
+
+        .btn-close {
+            background: none;
+            border: none;
+            font-size: 1.5rem;
+            cursor: pointer;
+            color: #64748b;
+            padding: 5px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+        
+        .btn-close:hover {
+            background: #f1f5f9;
+            color: var(--danger);
+        }
+
+        .modal-body {
+            padding: 25px;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        .form-group.full-width {
+            grid-column: 1 / -1;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: var(--dark);
+            font-size: 0.95rem;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 1rem;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            outline: none;
+            border-color: var(--primary);
+            background: white;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+        }
+        
+        .form-textarea {
+            min-height: 100px;
+            resize: vertical;
+        }
+
+        .modal-footer {
+            padding: 20px 25px;
+            border-top: 1px solid #e5e7eb;
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            position: sticky;
+            bottom: 0;
+            background: white;
+            border-radius: 0 0 20px 20px;
+        }
+        
+        /* Image Upload */
+        .image-upload-area {
+            border: 2px dashed #e5e7eb;
+            border-radius: 12px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: #f8fafc;
+        }
+        
+        .image-upload-area:hover {
+            border-color: var(--primary);
+            background: #f1f5f9;
+        }
+        
+        .image-upload-area i {
+            font-size: 2rem;
+            color: var(--primary);
+            margin-bottom: 10px;
+        }
+        
+        .image-upload-area p {
+            color: #64748b;
+            font-size: 0.9rem;
+        }
+        
+        .image-preview-container {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 15px;
+        }
+        
+        .image-preview-item {
+            position: relative;
+            width: 100px;
+            height: 80px;
+        }
+        
+        .image-preview-item img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 8px;
+        }
+        
+        .image-preview-remove {
+            position: absolute;
+            top: -8px;
+            left: -8px;
+            width: 24px;
+            height: 24px;
+            background: var(--danger);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 12px;
+        }
+
+        /* View Modal */
+        .view-modal-content {
+            max-width: 800px;
+        }
+        
+        .view-details-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+        }
+        
+        .view-detail-item {
+            background: #f8fafc;
+            padding: 15px;
+            border-radius: 10px;
+        }
+        
+        .view-detail-item label {
+            display: block;
+            font-size: 0.85rem;
+            color: #64748b;
+            margin-bottom: 5px;
+        }
+        
+        .view-detail-item span {
+            font-weight: 600;
+            color: var(--dark);
+        }
+        
+        .view-images-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .view-image-item {
+            border-radius: 12px;
+            overflow: hidden;
+            cursor: pointer;
+            transition: transform 0.3s;
+        }
+        
+        .view-image-item:hover {
+            transform: scale(1.02);
+        }
+        
+        .view-image-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+        }
+        
+        /* Lightbox */
+        .lightbox {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.95);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 3000;
+        }
+        
+        .lightbox.show {
+            display: flex;
+        }
+        
+        .lightbox img {
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+        }
+        
+        .lightbox-close {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: white;
+            border: none;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 1.5rem;
+        }
+
+        /* Loading Overlay */
+        .loading-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            display: none;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+        }
+
+        .loading-overlay.show {
+            display: flex;
+        }
+
+        .loading-content {
+            background: white;
+            padding: 40px 50px;
+            border-radius: 20px;
+            text-align: center;
+        }
+
+        .loading-spinner {
+            width: 50px;
+            height: 50px;
+            border: 4px solid #e5e7eb;
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 15px;
+        }
+
+        /* Connection Status Badge */
+        .connection-status {
+            position: fixed;
+            bottom: 20px;
+            left: 20px;
+            padding: 10px 20px;
+            border-radius: 25px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            z-index: 1000;
+            transition: all 0.3s ease;
+        }
+
+        .connection-status.online {
+            background: linear-gradient(135deg, #10b981, #059669);
+            color: white;
+        }
+
+        .connection-status.offline {
+            background: linear-gradient(135deg, #ef4444, #dc2626);
+            color: white;
+        }
+
+        .connection-status.syncing {
+            background: linear-gradient(135deg, #f59e0b, #d97706);
+            color: white;
+        }
+
+        .status-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            background: currentColor;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.5; }
+        }
+        
+        /* Import/Export Section */
+        .import-export-section {
+            display: flex;
+            gap: 10px;
+            padding: 20px 30px 0;
+            flex-wrap: wrap;
+        }
+        
+        /* Confirm Dialog */
+        .confirm-dialog {
+            background: white;
+            border-radius: 20px;
+            padding: 30px;
+            text-align: center;
+            max-width: 400px;
+        }
+        
+        .confirm-dialog i {
+            font-size: 3rem;
+            color: var(--warning);
+            margin-bottom: 15px;
+        }
+        
+        .confirm-dialog h4 {
+            margin-bottom: 10px;
+            color: var(--dark);
+        }
+        
+        .confirm-dialog p {
+            color: #64748b;
+            margin-bottom: 20px;
+        }
+        
+        .confirm-dialog-buttons {
+            display: flex;
+            gap: 10px;
+            justify-content: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .sidebar {
+                transform: translateX(100%);
+            }
+            
+            .sidebar.show {
+                transform: translateX(0);
+            }
+            
+            .main-content {
+                margin-right: 0;
+            }
+            
+            .mobile-menu-toggle {
+                display: flex;
+                align-items: center;
+                justify-content: center;
+            }
+            
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+        
+        @media (max-width: 768px) {
+            .vehicles-grid {
+                grid-template-columns: 1fr;
+            }
+            
+            .top-bar {
+                padding: 15px 20px;
+            }
+            
+            .top-bar h1 {
+                font-size: 1.2rem;
+            }
+            
+            .vehicles-section {
+                padding: 20px;
+            }
+            
+            .connection-status {
+                bottom: 10px;
+                left: 10px;
+                padding: 8px 15px;
+                font-size: 0.8rem;
+            }
+            
+            .view-details-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        /* Dark Mode Overrides */
+        html.dark body {
+            background: #0f172a;
+        }
+        
+        html.dark .sidebar {
+            background: #1e293b;
+            box-shadow: -2px 0 10px rgba(0,0,0,0.3);
+        }
+        
+        html.dark .menu-item {
+            color: #94a3b8;
+        }
+        
+        html.dark .menu-item:hover,
+        html.dark .menu-item.active {
+            background: #0f172a;
+            color: #818cf8;
+            border-right-color: #818cf8;
+        }
+        
+        html.dark .top-bar {
+            background: #1e293b;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        html.dark .top-bar h1 {
+            color: #f1f5f9;
+        }
+        
+        html.dark .vehicle-card {
+            background: #1e293b;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+        }
+        
+        html.dark .vehicle-title {
+            color: #f1f5f9;
+        }
+        
+        html.dark .vehicle-id,
+        html.dark .detail-item {
+            color: #94a3b8;
+        }
+        
+        html.dark .vehicle-value {
+            background: linear-gradient(135deg, #0f172a, #1e293b);
+        }
+        
+        html.dark .modal-content {
+            background: #1e293b;
+        }
+        
+        html.dark .modal-header {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        
+        html.dark .modal-header h3 {
+            color: #f1f5f9;
+        }
+        
+        html.dark .modal-footer {
+            background: #1e293b;
+            border-color: #334155;
+        }
+        
+        html.dark .form-group label {
+            color: #f1f5f9;
+        }
+        
+        html.dark .form-input,
+        html.dark .form-select,
+        html.dark .form-textarea {
+            background: #334155;
+            border-color: #475569;
+            color: #f1f5f9;
+        }
+        
+        html.dark .form-input:focus,
+        html.dark .form-select:focus,
+        html.dark .form-textarea:focus {
+            background: #1e293b;
+            border-color: #818cf8;
+        }
+        
+        html.dark .view-detail-item {
+            background: #0f172a;
+        }
+        
+        html.dark .view-detail-item label {
+            color: #94a3b8;
+        }
+        
+        html.dark .view-detail-item span {
+            color: #f1f5f9;
+        }
+        
+        html.dark .loading-content {
+            background: #1e293b;
+        }
+        
+        html.dark .confirm-dialog {
+            background: #1e293b;
+        }
+        
+        html.dark .confirm-dialog h4 {
+            color: #f1f5f9;
+        }
+        
+        html.dark .confirm-dialog p {
+            color: #94a3b8;
+        }
+        
+        html.dark .empty-state h3 {
+            color: #94a3b8;
+        }
+        
+        html.dark .image-upload-area {
+            background: #334155;
+            border-color: #475569;
+        }
+        
+        html.dark .image-upload-area:hover {
+            border-color: #818cf8;
+        }
+    </style>
+</head>
+<body>
+    <!-- Auth Check Loader -->
+    <div id="authCheckLoader">
+        <div class="loader-content">
+            <div class="loader-spinner"></div>
+            <h3>جاري التحقق من الحساب...</h3>
+        </div>
+    </div>
+
+    <!-- Mobile Menu Toggle -->
+    <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleSidebar()">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- Main Content (Hidden until authenticated) -->
+    <div id="mainContent" style="display: none;">
+        <!-- Sidebar -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="sidebar-logo">
+                    <i class="fas fa-car"></i>
+                    <h2>نظام المركبات</h2>
+                </div>
+                
+                <div class="user-info">
+                    <div class="user-avatar" id="sidebarAvatar">
+                        <span id="sidebarInitials">U</span>
+                    </div>
+                    <div class="user-details">
+                        <h3 id="sidebarUserName">المستخدم</h3>
+                        <p id="sidebarUserEmail">user@email.com</p>
+                    </div>
+                </div>
+            </div>
+
+            <nav class="sidebar-menu">
+                <div class="menu-item active" onclick="showSection('dashboard')">
+                    <i class="fas fa-th-large"></i>
+                    <span>لوحة التحكم</span>
+                </div>
+                <div class="menu-item" onclick="showSection('vehicles')">
+                    <i class="fas fa-car"></i>
+                    <span>المركبات</span>
+                </div>
+                <div class="menu-item" onclick="showSection('activities')">
+                    <i class="fas fa-history"></i>
+                    <span>سجل النشاطات</span>
+                </div>
+                <div class="menu-item" onclick="showSection('warehouse')">
+                    <i class="fas fa-warehouse"></i>
+                    <span>المستودعات</span>
+                </div>
+                <div class="menu-item" onclick="showSection('evaluators')">
+                    <i class="fas fa-user-tie"></i>
+                    <span>القائمين بالتقييم</span>
+                </div>
+                <div class="menu-item" onclick="exportAllToExcel()">
+                    <i class="fas fa-file-excel"></i>
+                    <span>تصدير Excel</span>
+                </div>
+                <div class="menu-item" onclick="exportToJSON()">
+                    <i class="fas fa-file-code"></i>
+                    <span>تصدير JSON</span>
+                </div>
+                <div class="menu-item" onclick="document.getElementById('importFile').click()">
+                    <i class="fas fa-file-import"></i>
+                    <span>استيراد بيانات</span>
+                </div>
+                <div class="menu-item" onclick="handleLogout()">
+                    <i class="fas fa-sign-out-alt"></i>
+                    <span>تسجيل الخروج</span>
+                </div>
+            </nav>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <h1>مرحباً، <span id="profileName">المستخدم</span> 👋</h1>
+                <div class="top-bar-actions">
+                    <button class="btn btn-success" onclick="exportAllToExcel()">
+                        <i class="fas fa-file-excel"></i>
+                        <span class="btn-text">تصدير Excel</span>
+                    </button>
+                    <button class="btn btn-primary" onclick="openAddModal()">
+                        <i class="fas fa-plus"></i>
+                        <span class="btn-text">إضافة مركبة</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Filters Section (New Feature) -->
+            <div id="nf-filters-container" style="padding: 20px 30px 0;"></div>
+            
+            <!-- Enhanced Stats Section (New Feature) -->
+            <div id="nf-enhanced-stats"></div>
+
+            <!-- Vehicles Section -->
+            <section class="vehicles-section content-section active" id="vehiclesSection">
+                <div class="section-header">
+                    <h2><i class="fas fa-car" style="margin-left: 10px; color: var(--primary);"></i>المركبات (<span id="vehicleCount">0</span>)</h2>
+                    <button class="btn btn-outline" onclick="confirmDeleteAll()" id="deleteAllBtn" style="display: none;">
+                        <i class="fas fa-trash"></i>
+                        حذف الكل
+                    </button>
+                </div>
+                <div class="vehicles-grid" id="vehiclesGrid">
+                    <!-- Vehicles will be loaded here -->
+                </div>
+            </section>
+            
+            <!-- Activities Section -->
+            <section class="content-section" id="activitiesSection" style="padding: 30px;">
+                <div class="nf-loading">
+                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل النشاطات...
+                </div>
+            </section>
+            
+            <!-- Warehouse Section -->
+            <section class="content-section" id="warehouseSection" style="padding: 30px;">
+                <div class="nf-loading">
+                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...
+                </div>
+            </section>
+            
+            <!-- Evaluators Section -->
+            <section class="content-section" id="evaluatorsSection" style="padding: 30px;">
+                <div class="nf-loading">
+                    <i class="fas fa-spinner fa-spin"></i> جاري تحميل القائمين بالتقييم...
+                </div>
+            </section>
+        </main>
+    </div>
+
+    <!-- Hidden file input for import -->
+    <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImport(event)">
+
+    <!-- Add/Edit Modal -->
+    <div class="modal" id="vehicleModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3 id="modalTitle"><i class="fas fa-car" style="margin-left: 10px;"></i>إضافة مركبة جديدة</h3>
+                <button class="btn-close" onclick="closeModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+                <form id="vehicleForm">
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-file-contract" style="margin-left: 5px;"></i>رقم العقد</label>
+                            <input type="text" class="form-input" id="contractNo" placeholder="مثال: CNT-2024-001">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-user" style="margin-left: 5px;"></i>اسم العميل</label>
+                            <input type="text" class="form-input" id="customerName" placeholder="الاسم الكامل">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-industry" style="margin-left: 5px;"></i>الصانع</label>
+                            <input type="text" class="form-input" id="make" placeholder="مثال: Toyota">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-car-side" style="margin-left: 5px;"></i>الموديل</label>
+                            <input type="text" class="form-input" id="model" placeholder="مثال: Camry">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-calendar" style="margin-left: 5px;"></i>السنة</label>
+                            <input type="number" class="form-input" id="year" min="1990" max="2030" placeholder="2024">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-barcode" style="margin-left: 5px;"></i>رقم الشاصي (VIN)</label>
+                            <input type="text" class="form-input" id="vin" maxlength="17" placeholder="17 حرف/رقم" data-validate-vin>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-id-card" style="margin-left: 5px;"></i>رقم اللوحة</label>
+                            <input type="text" class="form-input" id="plateNo" placeholder="مثال: ABC 1234">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-tachometer-alt" style="margin-left: 5px;"></i>عداد المسافات (كم)</label>
+                            <input type="number" class="form-input" id="odometer" min="0" placeholder="0">
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-palette" style="margin-left: 5px;"></i>اللون</label>
+                            <input type="text" class="form-input" id="color" placeholder="مثال: أبيض">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-gas-pump" style="margin-left: 5px;"></i>نوع الوقود</label>
+                            <select class="form-input" id="fuelType">
+                                <option value="">اختر...</option>
+                                <option value="petrol">بنزين</option>
+                                <option value="diesel">ديزل</option>
+                                <option value="hybrid">هجين</option>
+                                <option value="electric">كهربائي</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-coins" style="margin-left: 5px;"></i>القيمة السوقية (ر.س)</label>
+                            <input type="number" class="form-input" id="marketValue" min="0" placeholder="0">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-star" style="margin-left: 5px;"></i>التقييم العام</label>
+                            <select class="form-input" id="overallRating">
+                                <option value="excellent">ممتاز</option>
+                                <option value="good" selected>جيد</option>
+                                <option value="fair">مقبول</option>
+                                <option value="poor">ضعيف</option>
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-calendar-check" style="margin-left: 5px;"></i>تاريخ الاسترداد</label>
+                            <input type="date" class="form-input" id="recoveryDate">
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-map-marker-alt" style="margin-left: 5px;"></i>موقع الاسترداد</label>
+                            <input type="text" class="form-input" id="recoveryLocation" placeholder="المدينة أو الموقع">
+                        </div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label><i class="fas fa-clipboard-check" style="margin-left: 5px;"></i>التوصية</label>
+                        <select class="form-input" id="recommendation">
+                            <option value="">اختر...</option>
+                            <option value="sell_as_is">البيع كما هي</option>
+                            <option value="repair_sell">إصلاح ثم بيع</option>
+                            <option value="auction">مزاد</option>
+                            <option value="scrap">تخريد</option>
+                        </select>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-cog" style="margin-left: 5px;"></i>حالة التشغيل</label>
+                            <select class="form-input" id="operationStatus">
+                                <option value="">اختر...</option>
+                                <option value="working">✅ تعمل</option>
+                                <option value="not_working">❌ لا تعمل</option>
+                                <option value="needs_maintenance">🔧 تحتاج صيانة</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-warehouse" style="margin-left: 5px;"></i>المستودع</label>
+                            <select class="form-input" id="vehicleWarehouse">
+                                <option value="">اختر المستودع...</option>
+                                <!-- سيتم ملء المستودعات ديناميكياً -->
+                            </select>
+                        </div>
+                    </div>
+                    
+                    <div class="form-row">
+                        <div class="form-group">
+                            <label><i class="fas fa-user-tie" style="margin-left: 5px;"></i>القائم بالتقييم</label>
+                            <select class="form-input" id="evaluatorSelect">
+                                <option value="">-- اختر القائم بالتقييم --</option>
+                                <!-- سيتم ملء القائمين ديناميكياً -->
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label><i class="fas fa-id-badge" style="margin-left: 5px;"></i>اسم المقيّم (يدوي)</label>
+                            <input type="text" class="form-input" id="evaluatorName" placeholder="اسم القائم بالتقييم">
+                        </div>
+                    </div>
+                    
+                    <!-- GPS Location Section -->
+                    <div class="form-group full-width" style="background: #f8fafc; padding: 15px; border-radius: 12px; border: 2px dashed #e5e7eb;">
+                        <label style="font-size: 1.1rem; color: var(--primary); margin-bottom: 15px; display: block;">
+                            <i class="fas fa-map-marker-alt" style="margin-left: 8px;"></i>الموقع الجغرافي (GPS)
+                        </label>
+                        <div class="form-row">
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>خط العرض (Latitude)</label>
+                                <input type="text" class="form-input" id="gpsLatitude" placeholder="مثال: 24.7136" readonly style="background: #f1f5f9;">
+                            </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label>خط الطول (Longitude)</label>
+                                <input type="text" class="form-input" id="gpsLongitude" placeholder="مثال: 46.6753" readonly style="background: #f1f5f9;">
+                            </div>
+                        </div>
+                        <div style="display: flex; gap: 10px; margin-top: 15px; flex-wrap: wrap; align-items: center;">
+                            <button type="button" class="btn btn-info" onclick="captureGPSLocation()">
+                                <i class="fas fa-crosshairs"></i> التقاط الموقع تلقائياً
+                            </button>
+                            <button type="button" class="btn btn-outline" onclick="clearGPSLocation()">
+                                <i class="fas fa-times"></i> مسح
+                            </button>
+                            <span id="gpsStatus" style="font-size: 0.9rem; display: none;"></span>
+                        </div>
+                        <div id="gpsMapLink" style="margin-top: 10px;"></div>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label><i class="fas fa-sticky-note" style="margin-left: 5px;"></i>ملاحظات</label>
+                        <textarea class="form-input form-textarea" id="notes" placeholder="أي ملاحظات إضافية..."></textarea>
+                    </div>
+                    
+                    <div class="form-group full-width">
+                        <label><i class="fas fa-camera" style="margin-left: 5px;"></i>صور المركبة (حتى 3 صور)</label>
+                        <div class="image-upload-area" onclick="document.getElementById('vehicleImages').click()">
+                            <i class="fas fa-cloud-upload-alt"></i>
+                            <p>اضغط لاختيار الصور أو اسحب الصور هنا</p>
+                            <p style="font-size: 0.8rem; color: #94a3b8;">الحد الأقصى: 5MB لكل صورة</p>
+                        </div>
+                        <input type="file" id="vehicleImages" accept="image/*" multiple style="display: none;" onchange="handleImageUpload(event)">
+                        <div class="image-preview-container" id="imagePreviewContainer"></div>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeModal()">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </button>
+                <button class="btn btn-primary" onclick="saveVehicle()">
+                    <i class="fas fa-save"></i>
+                    حفظ
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- View Modal -->
+    <div class="modal" id="viewModal">
+        <div class="modal-content view-modal-content">
+            <div class="modal-header">
+                <h3 id="viewModalTitle"><i class="fas fa-eye" style="margin-left: 10px;"></i>تفاصيل المركبة</h3>
+                <button class="btn-close" onclick="closeViewModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="viewModalBody">
+                <!-- Vehicle details will be loaded here -->
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-outline" onclick="closeViewModal()">
+                    <i class="fas fa-times"></i>
+                    إغلاق
+                </button>
+                <button class="btn btn-warning" id="viewEditBtn" onclick="editFromView()">
+                    <i class="fas fa-edit"></i>
+                    تعديل
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Confirm Delete Modal -->
+    <div class="modal" id="confirmModal">
+        <div class="confirm-dialog">
+            <i class="fas fa-exclamation-triangle"></i>
+            <h4 id="confirmTitle">تأكيد الحذف</h4>
+            <p id="confirmMessage">هل أنت متأكد من حذف هذه المركبة؟</p>
+            <div class="confirm-dialog-buttons">
+                <button class="btn btn-outline" onclick="closeConfirmModal()">
+                    <i class="fas fa-times"></i>
+                    إلغاء
+                </button>
+                <button class="btn btn-danger" id="confirmBtn" onclick="confirmAction()">
+                    <i class="fas fa-trash"></i>
+                    حذف
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Lightbox -->
+    <div class="lightbox" id="lightbox" onclick="closeLightbox()">
+        <button class="lightbox-close" onclick="closeLightbox()">
+            <i class="fas fa-times"></i>
+        </button>
+        <img id="lightboxImage" src="" alt="">
+    </div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-content">
+            <div class="loading-spinner"></div>
+            <p id="loadingText">جاري التحميل...</p>
+        </div>
+    </div>
+
+    <!-- Connection Status Badge -->
+    <div class="connection-status online" id="connectionStatus">
+        <span class="status-dot"></span>
+        <span id="connectionText">متصل</span>
+    </div>
+
+    <script>
+        // ========================================
+        // Supabase Client Initialization - Use global client from supabase-config.js
+        // ========================================
+        let supabaseClient = null;
+        
+        // Initialize Supabase on page load (async version)
+        async function initializeSupabase() {
+            try {
+                // Use the async initialization from supabase-config.js
+                supabaseClient = await getSupabaseClientAsync();
+                
+                if (supabaseClient) {
+                    console.log('✅ Supabase client initialized in dashboard');
+                    return true;
+                } else {
+                    console.error('❌ Supabase client initialization failed');
+                    return false;
+                }
+            } catch (error) {
+                console.error('❌ Supabase initialization error:', error);
+                return false;
+            }
+        }
+
+        // ========================================
+        // Global Variables
+        // ========================================
+        let currentUser = null;
+        let vehicles = [];
+        let currentVehicleId = null;
+        let unsubscribeSnapshot = null;
+        let pendingImages = [];
+        let confirmCallback = null;
+
+        // ========================================
+        // Auth Check - Supabase
+        // ========================================
+        let authTimeout = null;
+        let authSubscription = null;
+        
+        // Initialize and check auth on page load
+        document.addEventListener('DOMContentLoaded', async () => {
+            const loader = document.getElementById('authCheckLoader');
+            const main = document.getElementById('mainContent');
+            
+            // Initialize Supabase (async)
+            const initialized = await initializeSupabase();
+            if (!initialized) {
+                loader.innerHTML = '<div class="loader-content"><p style="color: white;">خطأ في تحميل النظام. يرجى تحديث الصفحة.</p><button onclick="location.reload()" style="margin-top: 15px; padding: 10px 20px; background: white; border: none; border-radius: 8px; cursor: pointer;">تحديث الصفحة</button></div>';
+                return;
+            }
+            
+            // Set auth timeout
+            authTimeout = setTimeout(() => {
+                console.log('Auth check timeout - redirecting to login');
+                window.location.replace('index.html');
+            }, 10000);
+            
+            try {
+                // Check current session
+                const { data: { session } } = await supabaseClient.auth.getSession();
+                
+                if (authTimeout) {
+                    clearTimeout(authTimeout);
+                    authTimeout = null;
+                }
+                
+                if (session && session.user) {
+                    console.log('User authenticated:', session.user.email);
+                    currentUser = session.user;
+                    loader.style.display = 'none';
+                    main.style.display = 'block';
+                    
+                    updateUserUI(session.user);
+                    setupRealtimeSync();
+                    setupConnectionMonitor();
+                    await loadVehicles();
+                } else {
+                    console.log('User not authenticated, redirecting to login...');
+                    window.location.replace('index.html');
+                }
+                
+                // Listen for auth state changes
+                authSubscription = supabaseClient.auth.onAuthStateChange(async (event, session) => {
+                    console.log('Auth state changed:', event);
+                    if (event === 'SIGNED_OUT' || !session) {
+                        window.location.replace('index.html');
+                    } else if (event === 'SIGNED_IN' && session) {
+                        currentUser = session.user;
+                        updateUserUI(session.user);
+                    }
+                });
+                
+            } catch (error) {
+                console.error('Auth check error:', error);
+                if (authTimeout) clearTimeout(authTimeout);
+                window.location.replace('index.html');
+            }
+        });
+
+        // ========================================
+        // User UI - Supabase
+        // ========================================
+        function updateUserUI(user) {
+            const name = user.user_metadata?.display_name || user.user_metadata?.full_name || user.email?.split('@')[0] || 'المستخدم';
+            const email = user.email || '';
+            const initials = getInitials(name);
+            const photoURL = user.user_metadata?.avatar_url || user.user_metadata?.picture || null;
+            
+            document.getElementById('sidebarUserName').textContent = name;
+            document.getElementById('sidebarUserEmail').textContent = email;
+            document.getElementById('profileName').textContent = name.split(' ')[0];
+            
+            const avatarEl = document.getElementById('sidebarAvatar');
+            if (photoURL) {
+                avatarEl.innerHTML = `<img src="${photoURL}" alt="${name}">`;
+            } else {
+                document.getElementById('sidebarInitials').textContent = initials;
+            }
+        }
+
+        function getInitials(name) {
+            return name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
+        }
+
+        // ========================================
+        // Sidebar Toggle (Mobile)
+        // ========================================
+        function toggleSidebar() {
+            const sidebar = document.getElementById('sidebar');
+            sidebar.classList.toggle('show');
+        }
+
+        // ========================================
+        // Real-time Sync - Supabase
+        // ========================================
+        function setupRealtimeSync() {
+            if (!currentUser || !supabaseClient) return;
+            if (unsubscribeSnapshot) {
+                supabaseClient.removeChannel(unsubscribeSnapshot);
+            }
+            
+            updateConnectionStatus('syncing', 'جاري المزامنة...');
+            
+            // Subscribe to real-time changes
+            unsubscribeSnapshot = supabaseClient
+                .channel('vehicles_changes')
+                .on(
+                    'postgres_changes',
+                    {
+                        event: '*',
+                        schema: 'public',
+                        table: 'vehicles',
+                        filter: `user_id=eq.${currentUser.id}`
+                    },
+                    async (payload) => {
+                        console.log('Real-time update:', payload);
+                        // Reload vehicles on any change
+                        await loadVehicles();
+                        updateConnectionStatus('online', 'متصل ومتزامن');
+                    }
+                )
+                .subscribe((status) => {
+                    if (status === 'SUBSCRIBED') {
+                        updateConnectionStatus('online', 'متصل ومتزامن');
+                    } else if (status === 'CHANNEL_ERROR') {
+                        updateConnectionStatus('offline', 'غير متصل');
+                    }
+                });
+        }
+        
+        // ========================================
+        // Connection Monitor
+        // ========================================
+        function setupConnectionMonitor() {
+            window.addEventListener('online', () => {
+                updateConnectionStatus('online', 'متصل');
+                showNotification('تم استعادة الاتصال', 'success');
+                setupRealtimeSync();
+            });
+            
+            window.addEventListener('offline', () => {
+                updateConnectionStatus('offline', 'غير متصل');
+                showNotification('انقطع الاتصال - البيانات قد لا تكون محدثة', 'warning');
+            });
+            
+            if (navigator.onLine) {
+                updateConnectionStatus('online', 'متصل');
+            } else {
+                updateConnectionStatus('offline', 'غير متصل');
+            }
+        }
+        
+        function updateConnectionStatus(status, text) {
+            const statusEl = document.getElementById('connectionStatus');
+            const textEl = document.getElementById('connectionText');
+            
+            if (statusEl && textEl) {
+                statusEl.className = 'connection-status ' + status;
+                textEl.textContent = text;
+            }
+        }
+
+        // ========================================
+        // Load Vehicles - Supabase
+        // ========================================
+        async function loadVehicles() {
+            showLoading('جاري تحميل البيانات...');
+            
+            // Ensure Supabase client is initialized
+            if (!supabaseClient) {
+                console.error('Supabase client not initialized');
+                hideLoading();
+                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                return;
+            }
+            
+            try {
+                const { data, error } = await supabaseClient
+                    .from('vehicles')
+                    .select('*')
+                    .eq('user_id', currentUser.id)
+                    .eq('deleted', false)
+                    .order('created_at', { ascending: false });
+                
+                if (error) throw error;
+                
+                vehicles = data || [];
+                
+                renderVehicles();
+                updateStats();
+                hideLoading();
+            } catch (error) {
+                console.error('Load Error:', error);
+                hideLoading();
+                showNotification('خطأ في تحميل البيانات: ' + error.message, 'error');
+            }
+        }
+
+        // ========================================
+        // Render Vehicles
+        // ========================================
+        function renderVehicles() {
+            const grid = document.getElementById('vehiclesGrid');
+            document.getElementById('vehicleCount').textContent = vehicles.length;
+            
+            // Show/hide delete all button
+            const deleteAllBtn = document.getElementById('deleteAllBtn');
+            if (deleteAllBtn) {
+                deleteAllBtn.style.display = vehicles.length > 0 ? 'inline-flex' : 'none';
+            }
+            
+            if (vehicles.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-car"></i>
+                        <h3>لا توجد مركبات</h3>
+                        <p>ابدأ بإضافة مركبة جديدة لتظهر هنا</p>
+                        <button class="btn btn-primary" onclick="openAddModal()">
+                            <i class="fas fa-plus"></i>
+                            إضافة مركبة
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = vehicles.map(v => `
+                <div class="vehicle-card">
+                    <div class="vehicle-header">
+                        <div>
+                            <div class="vehicle-title">${v.make || ''} ${v.model || ''} ${v.year || ''}</div>
+                            <div class="vehicle-id"><i class="fas fa-file-contract"></i> ${v.contractNo || 'بدون رقم عقد'}</div>
+                        </div>
+                        <span class="vehicle-status status-${v.overallRating || 'good'}">${getRatingText(v.overallRating)}</span>
+                    </div>
+                    
+                    ${v.images && v.images.length > 0 ? `
+                        <div class="vehicle-images">
+                            ${v.images.slice(0, 3).map(img => `
+                                <img src="${img}" class="vehicle-image-thumb" onclick="openLightbox('${img}')" alt="صورة المركبة">
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="vehicle-details">
+                        <div class="detail-item">
+                            <i class="fas fa-user"></i>
+                            <span>${v.customerName || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-barcode"></i>
+                            <span>${v.vin || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>${v.odometer ? parseInt(v.odometer).toLocaleString() + ' كم' : 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-id-card"></i>
+                            <span>${v.plateNo || 'غير محدد'}</span>
+                        </div>
+                    </div>
+                    
+                    <!-- Operation Status & Warehouse badges -->
+                    <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
+                        ${v.operationStatus ? getOperationStatusBadge(v.operationStatus) : ''}
+                        ${v.warehouseName ? `<span class="nf-status-badge" style="background: #e0e7ff; color: #667eea;"><i class="fas fa-warehouse"></i> ${v.warehouseName}</span>` : ''}
+                    </div>
+                    
+                    <div class="vehicle-value">
+                        <span>القيمة السوقية</span>
+                        <strong>${v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0} ريال</strong>
+                    </div>
+                    
+                    <div class="vehicle-actions">
+                        <button class="btn-view" onclick="viewVehicle('${v.id}')">
+                            <i class="fas fa-eye"></i>
+                            عرض
+                        </button>
+                        <button class="btn-edit" onclick="editVehicle('${v.id}')">
+                            <i class="fas fa-edit"></i>
+                            تعديل
+                        </button>
+                        <button class="btn-delete" onclick="confirmDelete('${v.id}')">
+                            <i class="fas fa-trash"></i>
+                            حذف
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function getRatingText(rating) {
+            const ratings = {
+                'excellent': 'ممتاز',
+                'good': 'جيد',
+                'fair': 'مقبول',
+                'poor': 'ضعيف'
+            };
+            return ratings[rating] || 'غير محدد';
+        }
+
+        // ========================================
+        // Update Stats
+        // ========================================
+        function updateStats() {
+            // Will be overridden by NFStats integration
+        }
+
+        // ========================================
+        // Modal Functions
+        // ========================================
+        async function openAddModal() {
+            currentVehicleId = null;
+            pendingImages = [];
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle" style="margin-left: 10px;"></i>إضافة مركبة جديدة';
+            document.getElementById('vehicleForm').reset();
+            document.getElementById('imagePreviewContainer').innerHTML = '';
+            
+            // Clear GPS fields
+            document.getElementById('gpsLatitude').value = '';
+            document.getElementById('gpsLongitude').value = '';
+            document.getElementById('gpsStatus').style.display = 'none';
+            document.getElementById('gpsMapLink').innerHTML = '';
+            
+            // Clear evaluator field
+            document.getElementById('evaluatorName').value = '';
+            
+            // Populate dropdowns
+            await populateModalDropdowns();
+            
+            document.getElementById('vehicleModal').classList.add('show');
+        }
+
+        async function editVehicle(id) {
+            const vehicle = vehicles.find(v => v.id === id);
+            if (!vehicle) return;
+            
+            currentVehicleId = id;
+            pendingImages = vehicle.images || [];
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit" style="margin-left: 10px;"></i>تعديل المركبة';
+            
+            // Populate dropdowns first
+            await populateModalDropdowns();
+            
+            // Fill form
+            document.getElementById('contractNo').value = vehicle.contractNo || '';
+            document.getElementById('customerName').value = vehicle.customerName || '';
+            document.getElementById('make').value = vehicle.make || '';
+            document.getElementById('model').value = vehicle.model || '';
+            document.getElementById('year').value = vehicle.year || '';
+            document.getElementById('vin').value = vehicle.vin || '';
+            document.getElementById('plateNo').value = vehicle.plateNo || '';
+            document.getElementById('odometer').value = vehicle.odometer || '';
+            document.getElementById('color').value = vehicle.color || '';
+            document.getElementById('fuelType').value = vehicle.fuelType || '';
+            document.getElementById('marketValue').value = vehicle.marketValue || '';
+            document.getElementById('overallRating').value = vehicle.overallRating || 'good';
+            document.getElementById('recoveryDate').value = vehicle.recoveryDate || '';
+            document.getElementById('recoveryLocation').value = vehicle.recoveryLocation || '';
+            document.getElementById('recommendation').value = vehicle.recommendation || '';
+            document.getElementById('operationStatus').value = vehicle.operationStatus || '';
+            document.getElementById('vehicleWarehouse').value = vehicle.warehouse || '';
+            document.getElementById('notes').value = vehicle.notes || '';
+            
+            // Fill evaluator fields
+            document.getElementById('evaluatorSelect').value = vehicle.evaluatorId || '';
+            document.getElementById('evaluatorName').value = vehicle.evaluatorName || '';
+            
+            // Fill GPS fields
+            document.getElementById('gpsLatitude').value = vehicle.gpsLatitude || '';
+            document.getElementById('gpsLongitude').value = vehicle.gpsLongitude || '';
+            
+            // Show map link if GPS data exists
+            if (vehicle.gpsLatitude && vehicle.gpsLongitude) {
+                document.getElementById('gpsMapLink').innerHTML = `
+                    <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" target="_blank" class="btn btn-success btn-sm" style="margin-top: 10px;">
+                        <i class="fas fa-external-link-alt"></i> فتح الموقع في الخريطة
+                    </a>
+                `;
+            } else {
+                document.getElementById('gpsMapLink').innerHTML = '';
+            }
+            
+            // Show existing images
+            renderImagePreviews();
+            
+            document.getElementById('vehicleModal').classList.add('show');
+        }
+
+        function viewVehicle(id) {
+            const vehicle = vehicles.find(v => v.id === id);
+            if (!vehicle) return;
+            
+            currentVehicleId = id;
+            
+            const body = document.getElementById('viewModalBody');
+            body.innerHTML = `
+                <div class="view-details-grid">
+                    <div class="view-detail-item">
+                        <label>رقم العقد</label>
+                        <span>${vehicle.contractNo || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>اسم العميل</label>
+                        <span>${vehicle.customerName || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>الصانع</label>
+                        <span>${vehicle.make || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>الموديل</label>
+                        <span>${vehicle.model || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>السنة</label>
+                        <span>${vehicle.year || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>رقم الشاصي (VIN)</label>
+                        <span>${vehicle.vin || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>رقم اللوحة</label>
+                        <span>${vehicle.plateNo || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>عداد المسافات</label>
+                        <span>${vehicle.odometer ? parseInt(vehicle.odometer).toLocaleString() + ' كم' : '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>اللون</label>
+                        <span>${vehicle.color || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>نوع الوقود</label>
+                        <span>${getFuelTypeText(vehicle.fuelType)}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>القيمة السوقية</label>
+                        <span style="color: var(--primary); font-weight: 700;">${vehicle.marketValue ? parseInt(vehicle.marketValue).toLocaleString() + ' ر.س' : '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>التقييم العام</label>
+                        <span class="vehicle-status status-${vehicle.overallRating || 'good'}">${getRatingText(vehicle.overallRating)}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>تاريخ الاسترداد</label>
+                        <span>${vehicle.recoveryDate || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>موقع الاسترداد</label>
+                        <span>${vehicle.recoveryLocation || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>التوصية</label>
+                        <span>${getRecommendationText(vehicle.recommendation)}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>حالة التشغيل</label>
+                        <span>${getOperationStatusBadge(vehicle.operationStatus)}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>المستودع</label>
+                        <span><i class="fas fa-warehouse" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.warehouseName || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>القائم بالتقييم</label>
+                        <span><i class="fas fa-user-tie" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.evaluatorName || '-'}</span>
+                    </div>
+                    <div class="view-detail-item">
+                        <label>ملاحظات</label>
+                        <span>${vehicle.notes || '-'}</span>
+                    </div>
+                </div>
+                
+                ${vehicle.gpsLatitude && vehicle.gpsLongitude ? `
+                    <div style="margin-top: 20px; padding: 15px; background: linear-gradient(135deg, #f0fdf4, #dcfce7); border-radius: 12px; border: 1px solid #22c55e;">
+                        <h4 style="margin-bottom: 10px; color: #166534;">
+                            <i class="fas fa-map-marker-alt" style="margin-left: 8px;"></i>
+                            الموقع الجغرافي
+                        </h4>
+                        <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
+                            <span><strong>خط العرض:</strong> ${vehicle.gpsLatitude}</span>
+                            <span><strong>خط الطول:</strong> ${vehicle.gpsLongitude}</span>
+                            <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" target="_blank" class="btn btn-success btn-sm">
+                                <i class="fas fa-external-link-alt"></i> فتح في الخريطة
+                            </a>
+                        </div>
+                    </div>
+                ` : ''}
+                
+                ${vehicle.images && vehicle.images.length > 0 ? `
+                    <h4 style="margin-top: 25px; margin-bottom: 15px;">
+                        <i class="fas fa-images" style="margin-left: 8px; color: var(--primary);"></i>
+                        الصور (${vehicle.images.length})
+                    </h4>
+                    <div class="view-images-gallery">
+                        ${vehicle.images.map(img => `
+                            <div class="view-image-item" onclick="openLightbox('${img}')">
+                                <img src="${img}" alt="صورة المركبة">
+                            </div>
+                        `).join('')}
+                    </div>
+                ` : ''}
+            `;
+            
+            document.getElementById('viewModal').classList.add('show');
+        }
+        
+        function getFuelTypeText(type) {
+            const types = {
+                'petrol': 'بنزين',
+                'diesel': 'ديزل',
+                'hybrid': 'هجين',
+                'electric': 'كهربائي'
+            };
+            return types[type] || '-';
+        }
+        
+        function getOperationStatusBadge(status) {
+            const statuses = {
+                'working': { label: 'تعمل', icon: 'fa-check-circle', color: '#10b981', bgColor: '#d1fae5' },
+                'not_working': { label: 'لا تعمل', icon: 'fa-times-circle', color: '#ef4444', bgColor: '#fee2e2' },
+                'needs_maintenance': { label: 'تحتاج صيانة', icon: 'fa-wrench', color: '#f59e0b', bgColor: '#fef3c7' }
+            };
+            
+            const info = statuses[status];
+            if (!info) return '-';
+            
+            return `<span class="nf-status-badge" style="background: ${info.bgColor}; color: ${info.color};">
+                <i class="fas ${info.icon}"></i> ${info.label}
+            </span>`;
+        }
+        
+        function getRecommendationText(rec) {
+            const recs = {
+                'sell_as_is': 'البيع كما هي',
+                'repair_sell': 'إصلاح ثم بيع',
+                'auction': 'مزاد',
+                'scrap': 'تخريد'
+            };
+            return recs[rec] || '-';
+        }
+
+        function editFromView() {
+            closeViewModal();
+            editVehicle(currentVehicleId);
+        }
+
+        function closeModal() {
+            document.getElementById('vehicleModal').classList.remove('show');
+            pendingImages = [];
+        }
+
+        function closeViewModal() {
+            document.getElementById('viewModal').classList.remove('show');
+        }
+
+        // ========================================
+        // Image Handling
+        // ========================================
+        function handleImageUpload(event) {
+            const files = Array.from(event.target.files);
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            const maxImages = 3;
+            
+            if (pendingImages.length + files.length > maxImages) {
+                showNotification(`يمكنك رفع ${maxImages} صور كحد أقصى`, 'warning');
+                return;
+            }
+            
+            files.forEach(file => {
+                if (file.size > maxSize) {
+                    showNotification(`الصورة ${file.name} أكبر من 5MB`, 'warning');
+                    return;
+                }
+                
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    pendingImages.push(e.target.result);
+                    renderImagePreviews();
+                };
+                reader.readAsDataURL(file);
+            });
+            
+            event.target.value = '';
+        }
+        
+        function renderImagePreviews() {
+            const container = document.getElementById('imagePreviewContainer');
+            container.innerHTML = pendingImages.map((img, index) => `
+                <div class="image-preview-item">
+                    <img src="${img}" alt="Preview">
+                    <button class="image-preview-remove" onclick="removeImage(${index})">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+            `).join('');
+        }
+        
+        function removeImage(index) {
+            pendingImages.splice(index, 1);
+            renderImagePreviews();
+        }
+
+        // ========================================
+        // Save Vehicle
+        // ========================================
+        
+        // Helper function to upload image to Supabase Storage
+        async function uploadImageToStorage(base64Image, vehicleId, imageIndex) {
+            try {
+                // Ensure Supabase client is initialized
+                if (!supabaseClient) {
+                    console.error('Supabase client not initialized');
+                    return base64Image;
+                }
+                
+                // Check if it's already a URL (not base64)
+                if (base64Image.startsWith('https://') || base64Image.startsWith('http://')) {
+                    return base64Image; // Already uploaded, return as is
+                }
+                
+                // Convert base64 to blob
+                const response = await fetch(base64Image);
+                const blob = await response.blob();
+                
+                // Create unique filename
+                const timestamp = Date.now();
+                const fileExt = 'jpg';
+                const filename = `${currentUser.id}/${vehicleId}/${timestamp}_${imageIndex}.${fileExt}`;
+                
+                // Upload to Supabase Storage
+                const { data, error } = await supabaseClient.storage
+                    .from('vehicle-images')
+                    .upload(filename, blob, {
+                        cacheControl: '3600',
+                        upsert: false
+                    });
+                
+                if (error) {
+                    console.error('Upload error:', error);
+                    // If storage bucket doesn't exist, return base64
+                    return base64Image;
+                }
+                
+                // Get public URL
+                const { data: urlData } = supabaseClient.storage
+                    .from('vehicle-images')
+                    .getPublicUrl(filename);
+                
+                return urlData.publicUrl;
+            } catch (error) {
+                console.error('Image upload error:', error);
+                // Return original base64 if upload fails
+                return base64Image;
+            }
+        }
+        
+        // Helper function to safely parse numeric values
+        function parseNumericValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            const parsed = parseFloat(value);
+            return isNaN(parsed) ? null : parsed;
+        }
+        
+        // Helper function to safely parse integer values
+        function parseIntValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            const parsed = parseInt(value, 10);
+            return isNaN(parsed) ? null : parsed;
+        }
+        
+        // Helper function to clean empty strings to null
+        function cleanValue(value) {
+            if (value === null || value === undefined || value === '') {
+                return null;
+            }
+            return typeof value === 'string' ? value.trim() : value;
+        }
+        
+        async function saveVehicle() {
+            // Ensure Supabase client is initialized
+            if (!supabaseClient) {
+                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                return;
+            }
+            
+            // Get warehouse info
+            const warehouseSelect = document.getElementById('vehicleWarehouse');
+            const warehouseId = warehouseSelect.value;
+            const warehouseName = warehouseSelect.options[warehouseSelect.selectedIndex]?.text || '';
+            
+            // Get evaluator info
+            const evaluatorSelect = document.getElementById('evaluatorSelect');
+            const selectedEvaluator = evaluatorSelect.options[evaluatorSelect.selectedIndex];
+            const evaluatorId = evaluatorSelect.value;
+            const evaluatorNameFromSelect = selectedEvaluator?.dataset?.name || '';
+            const evaluatorNameManual = document.getElementById('evaluatorName').value.trim();
+            const evaluatorEmployeeId = selectedEvaluator?.dataset?.employeeId || '';
+            
+            // Get GPS location
+            const gpsLatitude = document.getElementById('gpsLatitude').value.trim();
+            const gpsLongitude = document.getElementById('gpsLongitude').value.trim();
+            
+            // Get form values
+            const yearValue = document.getElementById('year').value;
+            const odometerValue = document.getElementById('odometer').value;
+            const marketValueRaw = document.getElementById('marketValue').value;
+            
+            const data = {
+                contractNo: cleanValue(document.getElementById('contractNo').value),
+                customerName: cleanValue(document.getElementById('customerName').value),
+                make: cleanValue(document.getElementById('make').value),
+                model: cleanValue(document.getElementById('model').value),
+                year: parseIntValue(yearValue),
+                vin: cleanValue(document.getElementById('vin').value)?.toUpperCase() || null,
+                plateNo: cleanValue(document.getElementById('plateNo').value),
+                odometer: parseIntValue(odometerValue),
+                color: cleanValue(document.getElementById('color').value),
+                fuelType: cleanValue(document.getElementById('fuelType').value),
+                marketValue: parseNumericValue(marketValueRaw),
+                overallRating: cleanValue(document.getElementById('overallRating').value) || 'good',
+                recoveryDate: cleanValue(document.getElementById('recoveryDate').value),
+                recoveryLocation: cleanValue(document.getElementById('recoveryLocation').value),
+                recommendation: cleanValue(document.getElementById('recommendation').value),
+                operationStatus: cleanValue(document.getElementById('operationStatus').value),
+                warehouse: cleanValue(warehouseId),
+                warehouseName: warehouseName.includes('اختر') ? null : cleanValue(warehouseName),
+                // Evaluator info
+                evaluatorId: cleanValue(evaluatorId),
+                evaluatorName: cleanValue(evaluatorNameManual || evaluatorNameFromSelect),
+                evaluatorEmployeeId: cleanValue(evaluatorEmployeeId),
+                // GPS info
+                gpsLatitude: cleanValue(gpsLatitude),
+                gpsLongitude: cleanValue(gpsLongitude),
+                gpsMapUrl: (gpsLatitude && gpsLongitude) ? `https://www.google.com/maps?q=${gpsLatitude},${gpsLongitude}` : null,
+                // Other fields
+                notes: cleanValue(document.getElementById('notes').value),
+                images: [], // Will be populated after upload
+                updated_at: new Date().toISOString()
+            };
+            
+            // Minimal validation - only check for basic required fields
+            // Allow saving incomplete data as per user request
+            if (!data.make && !data.model && !data.contractNo && !data.customerName) {
+                showNotification('يرجى ملء حقل واحد على الأقل (الصانع، الموديل، رقم العقد، أو اسم العميل)', 'warning');
+                return;
+            }
+            
+            // VIN validation - only if provided
+            if (data.vin && data.vin.length !== 17) {
+                showNotification('رقم الشاصي (VIN) يجب أن يكون 17 حرف أو اتركه فارغاً', 'warning');
+                return;
+            }
+            
+            showLoading(currentVehicleId ? 'جاري التحديث...' : 'جاري الحفظ...');
+            
+            try {
+                const isEdit = !!currentVehicleId;
+                let vehicleId = currentVehicleId;
+                
+                // If new vehicle, insert first to get ID
+                if (!currentVehicleId) {
+                    data.user_id = currentUser.id;
+                    data.created_at = new Date().toISOString();
+                    data.deleted = false;
+                    
+                    const { data: insertedData, error: insertError } = await supabaseClient
+                        .from('vehicles')
+                        .insert(data)
+                        .select()
+                        .single();
+                    
+                    if (insertError) throw insertError;
+                    vehicleId = insertedData.id;
+                }
+                
+                // Upload images to Supabase Storage if there are any
+                if (pendingImages.length > 0) {
+                    showLoading('جاري رفع الصور إلى السحابة...');
+                    const uploadedImages = [];
+                    
+                    for (let i = 0; i < pendingImages.length; i++) {
+                        const imageUrl = await uploadImageToStorage(pendingImages[i], vehicleId, i);
+                        uploadedImages.push(imageUrl);
+                    }
+                    
+                    data.images = uploadedImages;
+                }
+                
+                // Update the vehicle with image URLs if editing or images were uploaded
+                if (isEdit || pendingImages.length > 0) {
+                    const { error: updateError } = await supabaseClient
+                        .from('vehicles')
+                        .update({
+                            ...data,
+                            updated_at: new Date().toISOString()
+                        })
+                        .eq('id', vehicleId)
+                        .eq('user_id', currentUser.id);
+                    
+                    if (updateError) throw updateError;
+                }
+                
+                // Log activity
+                if (window.NFActivity) {
+                    window.NFActivity.log(isEdit ? 'VEHICLE_UPDATED' : 'VEHICLE_ADDED', {
+                        vehicleName: `${data.make} ${data.model} ${data.year}`,
+                        contractNo: data.contractNo
+                    });
+                }
+                
+                showNotification(isEdit ? 'تم تحديث المركبة بنجاح' : 'تم إضافة المركبة بنجاح', 'success');
+                closeModal();
+                hideLoading();
+            } catch (error) {
+                console.error('Save Error:', error);
+                hideLoading();
+                showNotification('خطأ في الحفظ: ' + error.message, 'error');
+            }
+        }
+
+        // ========================================
+        // Delete Functions
+        // ========================================
+        function confirmDelete(id) {
+            currentVehicleId = id;
+            document.getElementById('confirmTitle').textContent = 'تأكيد الحذف';
+            document.getElementById('confirmMessage').textContent = 'هل أنت متأكد من حذف هذه المركبة؟ لا يمكن التراجع عن هذا الإجراء.';
+            document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-trash"></i> حذف';
+            confirmCallback = deleteVehicle;
+            document.getElementById('confirmModal').classList.add('show');
+        }
+        
+        function confirmDeleteAll() {
+            document.getElementById('confirmTitle').textContent = '⚠️ تحذير: حذف جميع المركبات';
+            document.getElementById('confirmMessage').textContent = `أنت على وشك حذف جميع المركبات (${vehicles.length} مركبة). هذا الإجراء لا يمكن التراجع عنه!`;
+            document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-trash"></i> حذف الكل';
+            confirmCallback = deleteAllVehicles;
+            document.getElementById('confirmModal').classList.add('show');
+        }
+        
+        function closeConfirmModal() {
+            document.getElementById('confirmModal').classList.remove('show');
+            confirmCallback = null;
+        }
+        
+        function confirmAction() {
+            if (confirmCallback) {
+                confirmCallback();
+            }
+            closeConfirmModal();
+        }
+
+        async function deleteVehicle() {
+            // Ensure Supabase client is initialized
+            if (!supabaseClient) {
+                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                return;
+            }
+            
+            showLoading('جاري الحذف...');
+            
+            try {
+                // Get vehicle info before deleting
+                const vehicle = vehicles.find(v => v.id === currentVehicleId);
+                
+                // Soft delete - update deleted flag
+                const { error } = await supabaseClient
+                    .from('vehicles')
+                    .update({ 
+                        deleted: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('id', currentVehicleId)
+                    .eq('user_id', currentUser.id);
+                
+                if (error) throw error;
+                
+                // Log activity
+                if (window.NFActivity && vehicle) {
+                    window.NFActivity.log('VEHICLE_DELETED', {
+                        vehicleName: `${vehicle.make} ${vehicle.model} ${vehicle.year}`,
+                        contractNo: vehicle.contractNo
+                    });
+                }
+                
+                // Reload vehicles
+                await loadVehicles();
+                
+                showNotification('تم حذف المركبة', 'info');
+                hideLoading();
+            } catch (error) {
+                console.error('Delete Error:', error);
+                hideLoading();
+                showNotification('خطأ في الحذف: ' + error.message, 'error');
+            }
+        }
+        
+        async function deleteAllVehicles() {
+            // Ensure Supabase client is initialized
+            if (!supabaseClient) {
+                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                return;
+            }
+            
+            showLoading('جاري حذف جميع المركبات...');
+            
+            try {
+                const count = vehicles.length;
+                
+                // Soft delete all vehicles for this user
+                const { error } = await supabaseClient
+                    .from('vehicles')
+                    .update({ 
+                        deleted: true,
+                        updated_at: new Date().toISOString()
+                    })
+                    .eq('user_id', currentUser.id)
+                    .eq('deleted', false);
+                
+                if (error) throw error;
+                
+                // Reload vehicles
+                await loadVehicles();
+                
+                showNotification(`تم حذف ${count} مركبة`, 'info');
+                hideLoading();
+            } catch (error) {
+                console.error('Delete All Error:', error);
+                hideLoading();
+                showNotification('خطأ في الحذف: ' + error.message, 'error');
+            }
+        }
+
+        // ========================================
+        // Lightbox
+        // ========================================
+        function openLightbox(imageUrl) {
+            document.getElementById('lightboxImage').src = imageUrl;
+            document.getElementById('lightbox').classList.add('show');
+        }
+        
+        function closeLightbox() {
+            document.getElementById('lightbox').classList.remove('show');
+        }
+
+        // ========================================
+        // Export Functions
+        // ========================================
+        
+        // Helper function for operation status text (used in export)
+        function getOperationStatusText(status) {
+            const statuses = {
+                'working': 'تعمل',
+                'not_working': 'لا تعمل',
+                'needs_maintenance': 'تحتاج صيانة'
+            };
+            return statuses[status] || '-';
+        }
+        
+        async function exportAllToExcel() {
+            // Validate vehicles array
+            if (!vehicles || vehicles.length === 0) {
+                showNotification('لا توجد مركبات للتصدير', 'warning');
+                return;
+            }
+            
+            // Check if XLSX library is loaded
+            if (typeof XLSX === 'undefined') {
+                showNotification('مكتبة Excel غير متاحة. يرجى تحديث الصفحة.', 'error');
+                console.error('XLSX library not loaded');
+                return;
+            }
+            
+            showLoading('جاري تصدير البيانات إلى Excel...');
+            
+            try {
+                const wb = XLSX.utils.book_new();
+                
+                // Calculate statistics
+                const totalValue = vehicles.reduce((sum, v) => sum + (parseFloat(v.marketValue) || 0), 0);
+                const workingCount = vehicles.filter(v => v.operationStatus === 'working').length;
+                const notWorkingCount = vehicles.filter(v => v.operationStatus === 'not_working').length;
+                const maintenanceCount = vehicles.filter(v => v.operationStatus === 'needs_maintenance').length;
+                
+                // Summary sheet with comprehensive statistics
+                const summaryData = [
+                    ['📊 تقرير المركبات المستردة'],
+                    [''],
+                    ['معلومات التقرير'],
+                    [`تاريخ التقرير:`, new Date().toLocaleString('ar-SA')],
+                    [`الوقت:`, new Date().toLocaleTimeString('ar-SA')],
+                    [''],
+                    ['📈 الإحصائيات العامة'],
+                    [`إجمالي المركبات:`, vehicles.length],
+                    [`إجمالي القيمة السوقية:`, `${totalValue.toLocaleString()} ر.س`],
+                    [`متوسط القيمة:`, `${Math.round(totalValue / vehicles.length).toLocaleString()} ر.س`],
+                    [''],
+                    ['🔧 حالة التشغيل'],
+                    [`تعمل:`, workingCount],
+                    [`لا تعمل:`, notWorkingCount],
+                    [`تحتاج صيانة:`, maintenanceCount],
+                    [''],
+                    ['💡 ملاحظات مهمة:'],
+                    ['', '- عمود "Open Map" يحتوي على روابط لفتح موقع المركبة في خرائط Google'],
+                    ['', '- عمود "Photos Album" يحتوي على رابط الصورة الأولى للمركبة'],
+                    ['', '- اضغط على الروابط لفتحها مباشرة في المتصفح'],
+                    ['', '- الصور المرفوعة حديثاً ستحتوي على روابط قابلة للنقر']
+                ];
+                
+                const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+                summarySheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
+                XLSX.utils.book_append_sheet(wb, summarySheet, 'ملخص');
+                
+                // Vehicles data sheet with GPS and images
+                const headers = [
+                    '#', 'رقم العقد', 'اسم العميل', 'الصانع', 'الموديل', 'السنة', 
+                    'VIN', 'رقم اللوحة', 'عداد المسافات', 'اللون', 'نوع الوقود',
+                    'القيمة السوقية (ر.س)', 'التقييم العام', 'التوصية', 'حالة التشغيل', 
+                    'المستودع', 'تاريخ الاسترداد', 'موقع الاسترداد',
+                    'القائم بالتقييم', 'ملاحظات',
+                    'Open Map', 'Photos Album'
+                ];
+                
+                const data = vehicles.map((v, index) => {
+                    // Generate Google Maps URL
+                    let mapsUrl = '';
+                    if (v.gpsLatitude && v.gpsLongitude) {
+                        mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
+                    }
+                    
+                    // Photo URL - use first image directly (Firebase URL or data URL)
+                    // This ensures the link is clickable and opens the image directly
+                    let photoUrl = '';
+                    if (v.images && v.images.length > 0 && v.images[0]) {
+                        // If it's a Firebase URL (starts with https://), use it directly
+                        // If it's a data URL (base64), we'll show count instead
+                        const firstImage = v.images[0];
+                        if (firstImage.startsWith('https://') || firstImage.startsWith('http://')) {
+                            photoUrl = firstImage;
+                        } else {
+                            // For base64 images, show image count info
+                            photoUrl = `${v.images.length} صورة مرفقة`;
+                        }
+                    }
+                    
+                    return [
+                        index + 1,
+                        v.contractNo || '',
+                        v.customerName || '',
+                        v.make || '',
+                        v.model || '',
+                        v.year || '',
+                        v.vin || '',
+                        v.plateNo || '',
+                        v.odometer || '',
+                        v.color || '',
+                        getFuelTypeText(v.fuelType),
+                        v.marketValue || '',
+                        getRatingText(v.overallRating),
+                        getRecommendationText(v.recommendation),
+                        getOperationStatusText(v.operationStatus),
+                        v.warehouseName || '',
+                        v.recoveryDate || '',
+                        v.recoveryLocation || '',
+                        v.evaluatorName || '',
+                        v.notes || '',
+                        mapsUrl,
+                        photoUrl
+                    ];
+                });
+                
+                const vehiclesSheet = XLSX.utils.aoa_to_sheet([headers, ...data]);
+                
+                // Set column widths
+                vehiclesSheet['!cols'] = [
+                    { wch: 5 },  // #
+                    { wch: 15 }, { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 8 },
+                    { wch: 20 }, { wch: 12 }, { wch: 12 }, { wch: 10 }, { wch: 12 },
+                    { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 15 }, { wch: 18 },
+                    { wch: 14 }, { wch: 18 }, { wch: 18 }, { wch: 25 },
+                    { wch: 50 }, { wch: 50 }
+                ];
+                
+                // Add hyperlinks for Maps and Photos columns
+                vehicles.forEach((v, index) => {
+                    const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1)
+                    
+                    // Maps link - Column U (index 20)
+                    if (v.gpsLatitude && v.gpsLongitude) {
+                        const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
+                        const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 20 });
+                        if (vehiclesSheet[cellRef]) {
+                            vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
+                        }
+                    }
+                    
+                    // Photo link - Column V (index 21) - Only for web URLs
+                    if (v.images && v.images.length > 0 && v.images[0]) {
+                        const firstImage = v.images[0];
+                        // Only add hyperlink if it's a valid web URL (not base64)
+                        if (firstImage.startsWith('https://') || firstImage.startsWith('http://')) {
+                            const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: 21 });
+                            if (vehiclesSheet[cellRef]) {
+                                vehiclesSheet[cellRef].l = { Target: firstImage, Tooltip: 'انقر لعرض الصورة' };
+                            }
+                        }
+                    }
+                });
+                
+                XLSX.utils.book_append_sheet(wb, vehiclesSheet, 'المركبات');
+                
+                // Log activity
+                if (window.NFActivity) {
+                    try {
+                        window.NFActivity.log('EXPORT_EXCEL', { count: vehicles.length });
+                    } catch (e) {
+                        console.warn('Could not log activity:', e);
+                    }
+                }
+                
+                const date = new Date().toISOString().split('T')[0];
+                const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
+                XLSX.writeFile(wb, `Vehicles_Export_${date}_${time}.xlsx`);
+                
+                hideLoading();
+                showNotification(`✅ تم تصدير ${vehicles.length} مركبة بنجاح مع روابط الخرائط والصور!`, 'success');
+            } catch (error) {
+                console.error('Export Error:', error);
+                hideLoading();
+                showNotification('❌ حدث خطأ أثناء التصدير: ' + (error.message || 'خطأ غير معروف'), 'error');
+            }
+        }
+        
+        function exportToJSON() {
+            if (vehicles.length === 0) {
+                showNotification('لا توجد مركبات للتصدير', 'warning');
+                return;
+            }
+            
+            const exportData = {
+                exportDate: new Date().toISOString(),
+                totalVehicles: vehicles.length,
+                vehicles: vehicles.map(v => {
+                    const { id, ...data } = v;
+                    return data;
+                })
+            };
+            
+            const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = `Vehicles_Backup_${new Date().toISOString().split('T')[0]}.json`;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showNotification(`تم تصدير ${vehicles.length} مركبة كـ JSON`, 'success');
+        }
+        
+        function handleImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            const reader = new FileReader();
+            reader.onload = async (e) => {
+                try {
+                    const data = JSON.parse(e.target.result);
+                    
+                    if (!data.vehicles || !Array.isArray(data.vehicles)) {
+                        throw new Error('تنسيق الملف غير صحيح');
+                    }
+                    
+                    const count = data.vehicles.length;
+                    if (count === 0) {
+                        showNotification('الملف لا يحتوي على مركبات', 'warning');
+                        return;
+                    }
+                    
+                    document.getElementById('confirmTitle').textContent = 'تأكيد الاستيراد';
+                    document.getElementById('confirmMessage').textContent = `سيتم استيراد ${count} مركبة. هل تريد المتابعة؟`;
+                    document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-file-import"></i> استيراد';
+                    confirmCallback = () => importVehicles(data.vehicles);
+                    document.getElementById('confirmModal').classList.add('show');
+                    
+                } catch (error) {
+                    showNotification('خطأ في قراءة الملف: ' + error.message, 'error');
+                }
+            };
+            reader.readAsText(file);
+            event.target.value = '';
+        }
+        
+        async function importVehicles(vehiclesList) {
+            // Ensure Supabase client is initialized
+            if (!supabaseClient) {
+                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                return;
+            }
+            
+            showLoading(`جاري استيراد ${vehiclesList.length} مركبة...`);
+            
+            try {
+                // Prepare vehicles for insert - clean numeric values
+                const vehiclesToInsert = vehiclesList.map(vehicle => {
+                    // Remove any existing id to let Supabase generate new ones
+                    const { id, ...vehicleData } = vehicle;
+                    
+                    return {
+                        ...vehicleData,
+                        // Clean numeric fields
+                        year: parseIntValue(vehicle.year),
+                        odometer: parseIntValue(vehicle.odometer),
+                        marketValue: parseNumericValue(vehicle.marketValue),
+                        // Clean string fields
+                        contractNo: cleanValue(vehicle.contractNo),
+                        customerName: cleanValue(vehicle.customerName),
+                        make: cleanValue(vehicle.make),
+                        model: cleanValue(vehicle.model),
+                        vin: cleanValue(vehicle.vin),
+                        plateNo: cleanValue(vehicle.plateNo),
+                        color: cleanValue(vehicle.color),
+                        fuelType: cleanValue(vehicle.fuelType),
+                        overallRating: cleanValue(vehicle.overallRating) || 'good',
+                        recoveryDate: cleanValue(vehicle.recoveryDate),
+                        recoveryLocation: cleanValue(vehicle.recoveryLocation),
+                        recommendation: cleanValue(vehicle.recommendation),
+                        operationStatus: cleanValue(vehicle.operationStatus),
+                        warehouse: cleanValue(vehicle.warehouse),
+                        warehouseName: cleanValue(vehicle.warehouseName),
+                        evaluatorId: cleanValue(vehicle.evaluatorId),
+                        evaluatorName: cleanValue(vehicle.evaluatorName),
+                        evaluatorEmployeeId: cleanValue(vehicle.evaluatorEmployeeId),
+                        gpsLatitude: cleanValue(vehicle.gpsLatitude),
+                        gpsLongitude: cleanValue(vehicle.gpsLongitude),
+                        gpsMapUrl: cleanValue(vehicle.gpsMapUrl),
+                        notes: cleanValue(vehicle.notes),
+                        images: Array.isArray(vehicle.images) ? vehicle.images : [],
+                        // Set user and timestamps
+                        user_id: currentUser.id,
+                        created_at: new Date().toISOString(),
+                        updated_at: new Date().toISOString(),
+                        deleted: false
+                    };
+                });
+                
+                const { error } = await supabaseClient
+                    .from('vehicles')
+                    .insert(vehiclesToInsert);
+                
+                if (error) throw error;
+                
+                // Reload vehicles
+                await loadVehicles();
+                
+                hideLoading();
+                showNotification(`تم استيراد ${vehiclesList.length} مركبة بنجاح!`, 'success');
+            } catch (error) {
+                console.error('Import Error:', error);
+                hideLoading();
+                showNotification('خطأ في الاستيراد: ' + error.message, 'error');
+            }
+        }
+
+        // ========================================
+        // Logout
+        // ========================================
+        async function handleLogout() {
+            document.getElementById('confirmTitle').textContent = 'تسجيل الخروج';
+            document.getElementById('confirmMessage').textContent = 'هل أنت متأكد من تسجيل الخروج؟';
+            document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-sign-out-alt"></i> خروج';
+            document.getElementById('confirmBtn').className = 'btn btn-warning';
+            confirmCallback = async () => {
+                showLoading('جاري تسجيل الخروج...');
+                try {
+                    // Unsubscribe from realtime
+                    if (unsubscribeSnapshot && supabaseClient) {
+                        supabaseClient.removeChannel(unsubscribeSnapshot);
+                    }
+                    // Unsubscribe from auth
+                    if (authSubscription) {
+                        authSubscription.data?.subscription?.unsubscribe();
+                    }
+                    // Sign out
+                    if (supabaseClient) {
+                        await supabaseClient.auth.signOut();
+                    }
+                    // Clear local storage
+                    localStorage.removeItem('vehicleData');
+                    localStorage.removeItem('currentVehicle');
+                    // Redirect
+                    window.location.href = 'index.html';
+                } catch (error) {
+                    console.error('Logout Error:', error);
+                    hideLoading();
+                    showNotification('خطأ في تسجيل الخروج: ' + error.message, 'error');
+                }
+            };
+            document.getElementById('confirmModal').classList.add('show');
+        }
+
+        // ========================================
+        // Utility Functions
+        // ========================================
+        function showLoading(text = 'جاري التحميل...') {
+            document.getElementById('loadingText').textContent = text;
+            document.getElementById('loadingOverlay').classList.add('show');
+        }
+
+        function hideLoading() {
+            document.getElementById('loadingOverlay').classList.remove('show');
+        }
+
+        function showNotification(message, type = 'info') {
+            // Will be overridden by NFNotify
+            console.log(`[${type}] ${message}`);
+        }
+        
+        // ========================================
+        // GPS Functions
+        // ========================================
+        async function captureGPSLocation() {
+            const statusEl = document.getElementById('gpsStatus');
+            const latInput = document.getElementById('gpsLatitude');
+            const lngInput = document.getElementById('gpsLongitude');
+            const mapLinkDiv = document.getElementById('gpsMapLink');
+            
+            if (statusEl) {
+                statusEl.style.display = 'inline';
+                statusEl.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري تحديد الموقع...';
+                statusEl.style.color = '#f59e0b';
+            }
+            
+            if (!navigator.geolocation) {
+                if (statusEl) {
+                    statusEl.innerHTML = '<i class="fas fa-exclamation-circle"></i> الجهاز لا يدعم GPS';
+                    statusEl.style.color = '#ef4444';
+                }
+                showNotification('الجهاز لا يدعم تحديد الموقع', 'error');
+                return;
+            }
+            
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 15000,
+                maximumAge: 0
+            };
+            
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude.toFixed(6);
+                    const lng = position.coords.longitude.toFixed(6);
+                    
+                    if (latInput) latInput.value = lat;
+                    if (lngInput) lngInput.value = lng;
+                    
+                    if (statusEl) {
+                        statusEl.innerHTML = '<i class="fas fa-check-circle"></i> تم تحديد الموقع بنجاح!';
+                        statusEl.style.color = '#10b981';
+                    }
+                    
+                    // Show map link
+                    if (mapLinkDiv) {
+                        mapLinkDiv.innerHTML = `
+                            <a href="https://www.google.com/maps?q=${lat},${lng}" target="_blank" class="btn btn-success btn-sm" style="margin-top: 10px;">
+                                <i class="fas fa-external-link-alt"></i> فتح الموقع في الخريطة
+                            </a>
+                        `;
+                    }
+                    
+                    showNotification('تم التقاط الموقع الجغرافي بنجاح', 'success');
+                },
+                (error) => {
+                    let message = 'خطأ في تحديد الموقع';
+                    switch (error.code) {
+                        case error.PERMISSION_DENIED:
+                            message = 'تم رفض إذن الوصول للموقع';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            message = 'معلومات الموقع غير متاحة';
+                            break;
+                        case error.TIMEOUT:
+                            message = 'انتهى وقت طلب الموقع';
+                            break;
+                    }
+                    
+                    if (statusEl) {
+                        statusEl.innerHTML = `<i class="fas fa-exclamation-circle"></i> ${message}`;
+                        statusEl.style.color = '#ef4444';
+                    }
+                    
+                    showNotification(message, 'error');
+                },
+                options
+            );
+        }
+        
+        function clearGPSLocation() {
+            document.getElementById('gpsLatitude').value = '';
+            document.getElementById('gpsLongitude').value = '';
+            document.getElementById('gpsStatus').style.display = 'none';
+            document.getElementById('gpsMapLink').innerHTML = '';
+        }
+        
+        // ========================================
+        // Populate Warehouses and Evaluators in Modal
+        // ========================================
+        async function populateModalDropdowns() {
+            // Populate warehouses
+            const warehouseSelect = document.getElementById('vehicleWarehouse');
+            if (warehouseSelect && window.NFWarehouse) {
+                try {
+                    const warehouses = await NFWarehouse.getAll();
+                    warehouseSelect.innerHTML = '<option value="">اختر المستودع...</option>';
+                    warehouses.forEach(wh => {
+                        warehouseSelect.innerHTML += `<option value="${wh.id}" data-name="${wh.name}">${wh.name} - ${wh.location}</option>`;
+                    });
+                } catch (e) {
+                    console.warn('Could not load warehouses:', e);
+                }
+            }
+            
+            // Populate evaluators
+            const evaluatorSelect = document.getElementById('evaluatorSelect');
+            if (evaluatorSelect && window.NFEvaluators) {
+                try {
+                    await NFEvaluators.populateEvaluatorSelector('evaluatorSelect');
+                } catch (e) {
+                    console.warn('Could not load evaluators:', e);
+                }
+            }
+        }
+        
+        // Current active section
+        let currentSection = 'vehicles';
+        
+        async function showSection(section) {
+            currentSection = section;
+            
+            // Update menu active state
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+            });
+            if (event && event.target) {
+                const menuItem = event.target.closest('.menu-item');
+                if (menuItem) menuItem.classList.add('active');
+            }
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(sec => {
+                sec.classList.remove('active');
+            });
+            
+            // Show filters and stats only for vehicles/dashboard sections
+            const filtersContainer = document.getElementById('nf-filters-container');
+            const statsContainer = document.getElementById('nf-enhanced-stats');
+            
+            if (section === 'dashboard' || section === 'vehicles') {
+                if (filtersContainer) filtersContainer.style.display = 'block';
+                if (statsContainer) statsContainer.style.display = 'block';
+                document.getElementById('vehiclesSection').classList.add('active');
+            } else {
+                if (filtersContainer) filtersContainer.style.display = 'none';
+                if (statsContainer) statsContainer.style.display = 'none';
+            }
+            
+            // Handle specific sections
+            if (section === 'activities') {
+                const activitiesSection = document.getElementById('activitiesSection');
+                activitiesSection.classList.add('active');
+                await loadActivitiesPage();
+            } else if (section === 'warehouse') {
+                const warehouseSection = document.getElementById('warehouseSection');
+                warehouseSection.classList.add('active');
+                await loadWarehousePage();
+            } else if (section === 'evaluators') {
+                const evaluatorsSection = document.getElementById('evaluatorsSection');
+                evaluatorsSection.classList.add('active');
+                await loadEvaluatorsPage();
+            }
+            
+            // Close mobile sidebar
+            if (window.innerWidth <= 992) {
+                toggleSidebar();
+            }
+        }
+        
+        // Load activities page
+        async function loadActivitiesPage() {
+            const container = document.getElementById('activitiesSection');
+            container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل النشاطات...</div>';
+            
+            if (window.NFActivity) {
+                const activities = await NFActivity.getAll(100);
+                container.innerHTML = NFActivity.createPageHTML(activities);
+            } else {
+                container.innerHTML = `
+                    <div class="nf-empty-state">
+                        <i class="fas fa-clipboard-list"></i>
+                        <h3>سجل النشاطات</h3>
+                        <p>سيتم تسجيل جميع النشاطات هنا</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Load warehouse page
+        async function loadWarehousePage() {
+            const container = document.getElementById('warehouseSection');
+            container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...</div>';
+            
+            // Use enhanced warehouse if available
+            if (window.NFWarehouseEnhanced && window.NFWarehouse) {
+                const warehouses = await NFWarehouse.getAll();
+                const stats = await NFWarehouse.getStats(vehicles);
+                container.innerHTML = NFWarehouseEnhanced.createWarehousePageHTML(warehouses, stats);
+            } else if (window.NFWarehouse) {
+                const warehouses = await NFWarehouse.getAll();
+                const stats = await NFWarehouse.getStats(vehicles);
+                container.innerHTML = NFWarehouse.createPageHTML(warehouses, stats);
+            } else {
+                // Fallback warehouse display
+                const defaultWarehouses = [
+                    { id: 'main', name: 'المستودع الرئيسي', location: 'الرياض', capacity: 100 },
+                    { id: 'east', name: 'المستودع الشرقي', location: 'الدمام', capacity: 50 },
+                    { id: 'west', name: 'المستودع الغربي', location: 'جدة', capacity: 75 }
+                ];
+                
+                const stats = {};
+                vehicles.forEach(v => {
+                    const wh = v.warehouse || 'unassigned';
+                    stats[wh] = (stats[wh] || 0) + 1;
+                });
+                const totalVehicles = vehicles.length;
+                
+                container.innerHTML = `
+                    <div class="nf-warehouse-page">
+                        <div class="nf-warehouse-header">
+                            <h2><i class="fas fa-warehouse"></i> إدارة المستودعات</h2>
+                        </div>
+                        
+                        <div class="nf-warehouse-stats">
+                            <div class="nf-wh-stat-card">
+                                <i class="fas fa-warehouse"></i>
+                                <div class="nf-wh-stat-value">${defaultWarehouses.length}</div>
+                                <div class="nf-wh-stat-label">المستودعات</div>
+                            </div>
+                            <div class="nf-wh-stat-card">
+                                <i class="fas fa-car"></i>
+                                <div class="nf-wh-stat-value">${totalVehicles}</div>
+                                <div class="nf-wh-stat-label">المركبات</div>
+                            </div>
+                            <div class="nf-wh-stat-card">
+                                <i class="fas fa-question-circle"></i>
+                                <div class="nf-wh-stat-value">${stats.unassigned || 0}</div>
+                                <div class="nf-wh-stat-label">غير مخصصة</div>
+                            </div>
+                        </div>
+                        
+                        <div class="nf-warehouse-grid">
+                            ${defaultWarehouses.map(wh => {
+                                const count = stats[wh.id] || 0;
+                                const percentage = wh.capacity > 0 ? Math.round((count / wh.capacity) * 100) : 0;
+                                const statusClass = percentage >= 90 ? 'full' : percentage >= 70 ? 'warning' : 'ok';
+                                
+                                return `
+                                    <div class="nf-warehouse-card">
+                                        <div class="nf-wh-card-header">
+                                            <h3>${wh.name}</h3>
+                                            <span class="nf-wh-location">
+                                                <i class="fas fa-map-marker-alt"></i> ${wh.location}
+                                            </span>
+                                        </div>
+                                        <div class="nf-wh-card-body">
+                                            <div class="nf-wh-capacity">
+                                                <div class="nf-wh-capacity-bar">
+                                                    <div class="nf-wh-capacity-fill ${statusClass}" style="width: ${percentage}%"></div>
+                                                </div>
+                                                <div class="nf-wh-capacity-text">
+                                                    <span>${count} / ${wh.capacity}</span>
+                                                    <span>${percentage}%</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <div class="nf-wh-card-footer">
+                                            <button class="btn btn-outline btn-sm" onclick="filterByWarehouse('${wh.id}')">
+                                                <i class="fas fa-car"></i> عرض المركبات
+                                            </button>
+                                        </div>
+                                    </div>
+                                `;
+                            }).join('')}
+                        </div>
+                    </div>
+                `;
+            }
+        }
+        
+        // Filter vehicles by warehouse
+        function filterByWarehouse(warehouseId) {
+            showSection('vehicles');
+            if (window.NFFilters && window.NFFilters.instance) {
+                window.NFFilters.instance.setFilter('warehouse', warehouseId);
+            }
+        }
+        
+        // Load evaluators page
+        async function loadEvaluatorsPage() {
+            const container = document.getElementById('evaluatorsSection');
+            container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل القائمين بالتقييم...</div>';
+            
+            if (window.NFEvaluators) {
+                try {
+                    const evaluators = await NFEvaluators.getEvaluators();
+                    
+                    // Count vehicles per evaluator
+                    const evaluatorStats = {};
+                    vehicles.forEach(v => {
+                        if (v.evaluatorId) {
+                            evaluatorStats[v.evaluatorId] = (evaluatorStats[v.evaluatorId] || 0) + 1;
+                        }
+                    });
+                    
+                    container.innerHTML = `
+                        <div class="nf-warehouse-page">
+                            <div class="nf-warehouse-header">
+                                <h2><i class="fas fa-user-tie"></i> إدارة القائمين بالتقييم</h2>
+                                <button class="btn btn-primary" onclick="NFEvaluators.showAddEvaluatorModal()">
+                                    <i class="fas fa-plus"></i> إضافة قائم بالتقييم
+                                </button>
+                            </div>
+                            
+                            <div class="nf-warehouse-stats">
+                                <div class="nf-wh-stat-card">
+                                    <i class="fas fa-users"></i>
+                                    <div class="nf-wh-stat-value">${evaluators.length}</div>
+                                    <div class="nf-wh-stat-label">القائمين بالتقييم</div>
+                                </div>
+                                <div class="nf-wh-stat-card">
+                                    <i class="fas fa-car"></i>
+                                    <div class="nf-wh-stat-value">${Object.values(evaluatorStats).reduce((a, b) => a + b, 0)}</div>
+                                    <div class="nf-wh-stat-label">مركبات مقيّمة</div>
+                                </div>
+                            </div>
+                            
+                            <div class="nf-warehouse-grid">
+                                ${evaluators.map(evaluator => {
+                                    const vehicleCount = evaluatorStats[evaluator.id] || 0;
+                                    return `
+                                        <div class="nf-warehouse-card" style="text-align: center;">
+                                            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">
+                                                <i class="fas fa-user"></i>
+                                            </div>
+                                            <h3 style="margin-bottom: 5px; color: var(--dark);">${evaluator.name}</h3>
+                                            <p style="color: #64748b; margin-bottom: 15px;">
+                                                <i class="fas fa-id-badge"></i> ${evaluator.employeeId || '-'}
+                                            </p>
+                                            ${evaluator.phone ? `
+                                                <p style="color: #64748b; margin-bottom: 15px;">
+                                                    <i class="fas fa-phone"></i>
+                                                    <a href="tel:${evaluator.phone}" style="color: var(--primary);">${evaluator.phone}</a>
+                                                </p>
+                                            ` : ''}
+                                            <div class="nf-wh-card-body" style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
+                                                    <i class="fas fa-car" style="color: var(--primary);"></i>
+                                                    <span style="font-size: 1.2rem; font-weight: 700;">${vehicleCount}</span>
+                                                    <span style="color: #64748b;">مركبة</span>
+                                                </div>
+                                            </div>
+                                            <div class="nf-wh-card-footer" style="display: flex; gap: 8px; justify-content: center;">
+                                                <button class="btn btn-outline btn-sm" onclick="filterByEvaluator('${evaluator.id}')">
+                                                    <i class="fas fa-eye"></i> عرض المركبات
+                                                </button>
+                                                <button class="btn btn-danger btn-sm" onclick="confirmDeleteEvaluator('${evaluator.id}', '${evaluator.name}')" style="background: #fee2e2; color: #991b1b;">
+                                                    <i class="fas fa-trash"></i>
+                                                </button>
+                                            </div>
+                                        </div>
+                                    `;
+                                }).join('')}
+                            </div>
+                        </div>
+                    `;
+                } catch (error) {
+                    console.error('Error loading evaluators:', error);
+                    container.innerHTML = `
+                        <div class="nf-empty-state">
+                            <i class="fas fa-exclamation-circle" style="color: #ef4444;"></i>
+                            <h3>خطأ في التحميل</h3>
+                            <p>${error.message}</p>
+                        </div>
+                    `;
+                }
+            } else {
+                container.innerHTML = `
+                    <div class="nf-empty-state">
+                        <i class="fas fa-user-tie"></i>
+                        <h3>القائمين بالتقييم</h3>
+                        <p>قائمة بجميع القائمين بتقييم المركبات</p>
+                    </div>
+                `;
+            }
+        }
+        
+        // Filter vehicles by evaluator
+        function filterByEvaluator(evaluatorId) {
+            showSection('vehicles');
+            // Implement filter by evaluator
+            const filtered = vehicles.filter(v => v.evaluatorId === evaluatorId);
+            renderFilteredVehicles(filtered);
+            showNotification(`عرض ${filtered.length} مركبة للقائم المحدد`, 'info');
+        }
+        
+        // Confirm delete evaluator
+        function confirmDeleteEvaluator(evaluatorId, evaluatorName) {
+            document.getElementById('confirmTitle').textContent = 'تأكيد حذف القائم بالتقييم';
+            document.getElementById('confirmMessage').textContent = `هل أنت متأكد من حذف "${evaluatorName}"؟`;
+            document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-trash"></i> حذف';
+            confirmCallback = async () => {
+                if (window.NFEvaluators) {
+                    const result = await NFEvaluators.deleteEvaluator(evaluatorId);
+                    if (result) {
+                        showNotification('تم حذف القائم بالتقييم بنجاح', 'success');
+                        loadEvaluatorsPage();
+                    } else {
+                        showNotification('حدث خطأ أثناء الحذف', 'error');
+                    }
+                }
+            };
+            document.getElementById('confirmModal').classList.add('show');
+        }
+
+        // Keyboard shortcuts
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+                closeViewModal();
+                closeConfirmModal();
+                closeLightbox();
+            }
+        });
+    </script>
+
+    <!-- New Features JS -->
+    <script src="js/dark-mode-toggle.js"></script>
+    <script src="js/enhanced-notifications.js"></script>
+    <script src="js/form-validator.js"></script>
+    <script src="js/advanced-filters.js"></script>
+    <script src="js/dashboard-stats.js"></script>
+    <script src="js/activity-warehouse.js"></script>
+    <script src="js/enhanced-features.js"></script>
+    
+    <script>
+        // ========================================
+        // New Features Integration
+        // ========================================
+        
+        // Override showNotification to use enhanced notifications
+        const originalShowNotification = window.showNotification;
+        window.showNotification = function(message, type = 'info') {
+            if (window.NFNotify) {
+                NFNotify.show({ message, type });
+            } else {
+                console.log(`[${type}] ${message}`);
+            }
+        };
+        
+        // Initialize filters when vehicles are loaded
+        let filtersInitialized = false;
+        const originalRenderVehicles = window.renderVehicles;
+        window.renderVehicles = function() {
+            // Initialize filters UI once
+            if (!filtersInitialized && window.NFFilters) {
+                try {
+                    NFFilters.createFiltersUI('nf-filters-container', {
+                        onFilter: function(filteredData) {
+                            renderFilteredVehicles(filteredData);
+                        }
+                    });
+                    filtersInitialized = true;
+                } catch (e) {
+                    console.warn('Could not initialize filters:', e);
+                }
+            }
+            
+            // Populate filter options with current data (this also stores vehicles for filtering)
+            if (window.NFFilters && vehicles.length >= 0) {
+                NFFilters.populateFilterOptions(vehicles);
+            }
+            
+            // Apply current filters using stored original data
+            if (NFFilters && NFFilters.instance) {
+                const originalData = NFFilters.getOriginalVehicles();
+                const filtered = NFFilters.instance.getFilteredData(originalData.length > 0 ? originalData : vehicles);
+                renderFilteredVehicles(filtered);
+            } else {
+                renderFilteredVehicles(vehicles);
+            }
+            
+            // Update stats using full vehicle list (not filtered)
+            updateStats();
+        };
+        
+        // Render filtered vehicles
+        function renderFilteredVehicles(vehicleList) {
+            const grid = document.getElementById('vehiclesGrid');
+            document.getElementById('vehicleCount').textContent = vehicleList.length;
+            
+            if (window.NFFilters) {
+                NFFilters.updateResultsCount(vehicleList.length);
+            }
+            
+            // Show/hide delete all button
+            const deleteAllBtn = document.getElementById('deleteAllBtn');
+            if (deleteAllBtn) {
+                deleteAllBtn.style.display = vehicleList.length > 0 ? 'inline-flex' : 'none';
+            }
+            
+            if (vehicleList.length === 0 && vehicles.length > 0) {
+                // No results from filter
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-search"></i>
+                        <h3>لا توجد نتائج</h3>
+                        <p>حاول تغيير معايير البحث أو الفلترة</p>
+                        <button class="btn btn-primary" onclick="NFFilters.instance && NFFilters.instance.reset()">
+                            <i class="fas fa-redo"></i>
+                            إعادة تعيين الفلاتر
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            if (vehicleList.length === 0) {
+                grid.innerHTML = `
+                    <div class="empty-state" style="grid-column: 1/-1;">
+                        <i class="fas fa-car"></i>
+                        <h3>لا توجد مركبات</h3>
+                        <p>ابدأ بإضافة مركبة جديدة لتظهر هنا</p>
+                        <button class="btn btn-primary" onclick="openAddModal()">
+                            <i class="fas fa-plus"></i>
+                            إضافة مركبة
+                        </button>
+                    </div>
+                `;
+                return;
+            }
+            
+            grid.innerHTML = vehicleList.map(v => `
+                <div class="vehicle-card">
+                    <div class="vehicle-header">
+                        <div>
+                            <div class="vehicle-title">${v.make || ''} ${v.model || ''} ${v.year || ''}</div>
+                            <div class="vehicle-id"><i class="fas fa-file-contract"></i> ${v.contractNo || 'بدون رقم عقد'}</div>
+                        </div>
+                        <span class="vehicle-status status-${v.overallRating || 'good'}">${getRatingText(v.overallRating)}</span>
+                    </div>
+                    
+                    ${v.images && v.images.length > 0 ? `
+                        <div class="vehicle-images">
+                            ${v.images.slice(0, 3).map(img => `
+                                <img src="${img}" class="vehicle-image-thumb" onclick="openLightbox('${img}')" alt="صورة المركبة">
+                            `).join('')}
+                        </div>
+                    ` : ''}
+                    
+                    <div class="vehicle-details">
+                        <div class="detail-item">
+                            <i class="fas fa-user"></i>
+                            <span>${v.customerName || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-barcode"></i>
+                            <span>${v.vin || 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-tachometer-alt"></i>
+                            <span>${v.odometer ? parseInt(v.odometer).toLocaleString() + ' كم' : 'غير محدد'}</span>
+                        </div>
+                        <div class="detail-item">
+                            <i class="fas fa-id-card"></i>
+                            <span>${v.plateNo || 'غير محدد'}</span>
+                        </div>
+                    </div>
+                    
+                    <div class="vehicle-value">
+                        <span>القيمة السوقية</span>
+                        <strong>${v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0} ريال</strong>
+                    </div>
+                    
+                    <div class="vehicle-actions">
+                        <button class="btn-view" onclick="viewVehicle('${v.id}')">
+                            <i class="fas fa-eye"></i>
+                            عرض
+                        </button>
+                        <button class="btn-edit" onclick="editVehicle('${v.id}')">
+                            <i class="fas fa-edit"></i>
+                            تعديل
+                        </button>
+                        <button class="btn-delete" onclick="confirmDelete('${v.id}')">
+                            <i class="fas fa-trash"></i>
+                            حذف
+                        </button>
+                    </div>
+                </div>
+            `).join('');
+        }
+        
+        // Initialize form validator for vehicle modal
+        document.addEventListener('DOMContentLoaded', function() {
+            if (window.NFValidator) {
+                new NFValidator.FormValidator('#vehicleForm', {
+                    realTime: true,
+                    scrollToError: true,
+                    showSuccessState: true
+                });
+            }
+        });
+        
+        // Update enhanced stats when vehicles change
+        const originalUpdateStats = window.updateStats;
+        window.updateStats = function() {
+            // Update enhanced stats
+            if (window.NFStats && vehicles.length >= 0) {
+                NFStats.update('nf-enhanced-stats', vehicles);
+            }
+        };
+    </script>
+</body>
+</html>
