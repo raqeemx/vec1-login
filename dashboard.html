@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="لوحة التحكم - نظام تقييم المركبات المستردة">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.supabase.com; upgrade-insecure-requests">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self)">
     <meta name="theme-color" content="#667eea">
     <link rel="icon" type="image/svg+xml" href="favicon.svg">
     <title>لوحة التحكم - نظام تقييم المركبات</title>
@@ -24,6 +28,7 @@
     <link rel="stylesheet" href="css/animations.css">
     
     <!-- External Libraries -->
+    <script src="js/security-utils.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
@@ -1444,6 +1449,7 @@
         // Supabase Client Initialization - Use global client from supabase-config.js
         // ========================================
         let supabaseClient = null;
+        const { escapeHtml, safeText, safeUrl } = window.SecurityUtils;
         
         // Initialize Supabase on page load (async version)
         async function initializeSupabase() {
@@ -1554,8 +1560,9 @@
             document.getElementById('profileName').textContent = name.split(' ')[0];
             
             const avatarEl = document.getElementById('sidebarAvatar');
-            if (photoURL) {
-                avatarEl.innerHTML = `<img src="${photoURL}" alt="${name}">`;
+            const safePhotoURL = safeUrl(photoURL);
+            if (safePhotoURL) {
+                avatarEl.innerHTML = `<img src="${safePhotoURL}" alt="${escapeHtml(name)}">`;
             } else {
                 document.getElementById('sidebarInitials').textContent = initials;
             }
@@ -1707,20 +1714,33 @@
                 return;
             }
             
-            grid.innerHTML = vehicles.map(v => `
+            grid.innerHTML = vehicles.map(v => {
+                const title = escapeHtml(`${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim());
+                const contractNo = safeText(v.contractNo, 'بدون رقم عقد');
+                const statusClass = getRatingClass(v.overallRating);
+                const statusText = getRatingText(v.overallRating);
+                const images = (v.images || []).map((img) => safeUrl(img)).filter(Boolean);
+                const customerName = safeText(v.customerName, 'غير محدد');
+                const vin = safeText(v.vin, 'غير محدد');
+                const plateNo = safeText(v.plateNo, 'غير محدد');
+                const odometer = v.odometer ? `${parseInt(v.odometer).toLocaleString()} كم` : 'غير محدد';
+                const warehouseName = safeText(v.warehouseName, '');
+                const marketValue = v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0;
+
+                return `
                 <div class="vehicle-card">
                     <div class="vehicle-header">
                         <div>
-                            <div class="vehicle-title">${v.make || ''} ${v.model || ''} ${v.year || ''}</div>
-                            <div class="vehicle-id"><i class="fas fa-file-contract"></i> ${v.contractNo || 'بدون رقم عقد'}</div>
+                            <div class="vehicle-title">${title}</div>
+                            <div class="vehicle-id"><i class="fas fa-file-contract"></i> ${contractNo}</div>
                         </div>
-                        <span class="vehicle-status status-${v.overallRating || 'good'}">${getRatingText(v.overallRating)}</span>
+                        <span class="vehicle-status status-${statusClass}">${statusText}</span>
                     </div>
                     
-                    ${v.images && v.images.length > 0 ? `
+                    ${images.length > 0 ? `
                         <div class="vehicle-images">
-                            ${v.images.slice(0, 3).map(img => `
-                                <img src="${img}" class="vehicle-image-thumb" onclick="openLightbox('${img}')" alt="صورة المركبة">
+                            ${images.slice(0, 3).map(img => `
+                                <img src="${img}" class="vehicle-image-thumb" onclick="openLightbox('${encodeURIComponent(img)}')" alt="صورة المركبة">
                             `).join('')}
                         </div>
                     ` : ''}
@@ -1728,31 +1748,31 @@
                     <div class="vehicle-details">
                         <div class="detail-item">
                             <i class="fas fa-user"></i>
-                            <span>${v.customerName || 'غير محدد'}</span>
+                            <span>${customerName}</span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-barcode"></i>
-                            <span>${v.vin || 'غير محدد'}</span>
+                            <span>${vin}</span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-tachometer-alt"></i>
-                            <span>${v.odometer ? parseInt(v.odometer).toLocaleString() + ' كم' : 'غير محدد'}</span>
+                            <span>${escapeHtml(odometer)}</span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-id-card"></i>
-                            <span>${v.plateNo || 'غير محدد'}</span>
+                            <span>${plateNo}</span>
                         </div>
                     </div>
                     
                     <!-- Operation Status & Warehouse badges -->
                     <div style="display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 15px;">
                         ${v.operationStatus ? getOperationStatusBadge(v.operationStatus) : ''}
-                        ${v.warehouseName ? `<span class="nf-status-badge" style="background: #e0e7ff; color: #667eea;"><i class="fas fa-warehouse"></i> ${v.warehouseName}</span>` : ''}
+                        ${v.warehouseName ? `<span class="nf-status-badge" style="background: #e0e7ff; color: #667eea;"><i class="fas fa-warehouse"></i> ${warehouseName}</span>` : ''}
                     </div>
                     
                     <div class="vehicle-value">
                         <span>القيمة السوقية</span>
-                        <strong>${v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0} ريال</strong>
+                        <strong>${marketValue} ريال</strong>
                     </div>
                     
                     <div class="vehicle-actions">
@@ -1770,7 +1790,13 @@
                         </button>
                     </div>
                 </div>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        function getRatingClass(rating) {
+            const allowedRatings = ['excellent', 'good', 'fair', 'poor'];
+            return allowedRatings.includes(rating) ? rating : 'good';
         }
 
         function getRatingText(rating) {
@@ -1856,8 +1882,9 @@
             
             // Show map link if GPS data exists
             if (vehicle.gpsLatitude && vehicle.gpsLongitude) {
+                const mapUrl = safeUrl(`https://www.google.com/maps?q=${encodeURIComponent(vehicle.gpsLatitude)},${encodeURIComponent(vehicle.gpsLongitude)}`);
                 document.getElementById('gpsMapLink').innerHTML = `
-                    <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" target="_blank" class="btn btn-success btn-sm" style="margin-top: 10px;">
+                    <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm" style="margin-top: 10px;">
                         <i class="fas fa-external-link-alt"></i> فتح الموقع في الخريطة
                     </a>
                 `;
@@ -1876,45 +1903,49 @@
             if (!vehicle) return;
             
             currentVehicleId = id;
+            const images = (vehicle.images || []).map((img) => safeUrl(img)).filter(Boolean);
+            const mapUrl = vehicle.gpsLatitude && vehicle.gpsLongitude
+                ? safeUrl(`https://www.google.com/maps?q=${encodeURIComponent(vehicle.gpsLatitude)},${encodeURIComponent(vehicle.gpsLongitude)}`)
+                : '';
             
             const body = document.getElementById('viewModalBody');
             body.innerHTML = `
                 <div class="view-details-grid">
                     <div class="view-detail-item">
                         <label>رقم العقد</label>
-                        <span>${vehicle.contractNo || '-'}</span>
+                        <span>${safeText(vehicle.contractNo)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>اسم العميل</label>
-                        <span>${vehicle.customerName || '-'}</span>
+                        <span>${safeText(vehicle.customerName)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>الصانع</label>
-                        <span>${vehicle.make || '-'}</span>
+                        <span>${safeText(vehicle.make)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>الموديل</label>
-                        <span>${vehicle.model || '-'}</span>
+                        <span>${safeText(vehicle.model)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>السنة</label>
-                        <span>${vehicle.year || '-'}</span>
+                        <span>${safeText(vehicle.year)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>رقم الشاصي (VIN)</label>
-                        <span>${vehicle.vin || '-'}</span>
+                        <span>${safeText(vehicle.vin)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>رقم اللوحة</label>
-                        <span>${vehicle.plateNo || '-'}</span>
+                        <span>${safeText(vehicle.plateNo)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>عداد المسافات</label>
-                        <span>${vehicle.odometer ? parseInt(vehicle.odometer).toLocaleString() + ' كم' : '-'}</span>
+                        <span>${escapeHtml(vehicle.odometer ? `${parseInt(vehicle.odometer).toLocaleString()} كم` : '-')}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>اللون</label>
-                        <span>${vehicle.color || '-'}</span>
+                        <span>${safeText(vehicle.color)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>نوع الوقود</label>
@@ -1922,19 +1953,19 @@
                     </div>
                     <div class="view-detail-item">
                         <label>القيمة السوقية</label>
-                        <span style="color: var(--primary); font-weight: 700;">${vehicle.marketValue ? parseInt(vehicle.marketValue).toLocaleString() + ' ر.س' : '-'}</span>
+                        <span style="color: var(--primary); font-weight: 700;">${escapeHtml(vehicle.marketValue ? `${parseInt(vehicle.marketValue).toLocaleString()} ر.س` : '-')}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>التقييم العام</label>
-                        <span class="vehicle-status status-${vehicle.overallRating || 'good'}">${getRatingText(vehicle.overallRating)}</span>
+                        <span class="vehicle-status status-${getRatingClass(vehicle.overallRating)}">${getRatingText(vehicle.overallRating)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>تاريخ الاسترداد</label>
-                        <span>${vehicle.recoveryDate || '-'}</span>
+                        <span>${safeText(vehicle.recoveryDate)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>موقع الاسترداد</label>
-                        <span>${vehicle.recoveryLocation || '-'}</span>
+                        <span>${safeText(vehicle.recoveryLocation)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>التوصية</label>
@@ -1946,15 +1977,15 @@
                     </div>
                     <div class="view-detail-item">
                         <label>المستودع</label>
-                        <span><i class="fas fa-warehouse" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.warehouseName || '-'}</span>
+                        <span><i class="fas fa-warehouse" style="margin-left: 5px; color: var(--primary);"></i>${safeText(vehicle.warehouseName)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>القائم بالتقييم</label>
-                        <span><i class="fas fa-user-tie" style="margin-left: 5px; color: var(--primary);"></i>${vehicle.evaluatorName || '-'}</span>
+                        <span><i class="fas fa-user-tie" style="margin-left: 5px; color: var(--primary);"></i>${safeText(vehicle.evaluatorName)}</span>
                     </div>
                     <div class="view-detail-item">
                         <label>ملاحظات</label>
-                        <span>${vehicle.notes || '-'}</span>
+                        <span>${safeText(vehicle.notes)}</span>
                     </div>
                 </div>
                 
@@ -1965,23 +1996,23 @@
                             الموقع الجغرافي
                         </h4>
                         <div style="display: flex; gap: 20px; flex-wrap: wrap; align-items: center;">
-                            <span><strong>خط العرض:</strong> ${vehicle.gpsLatitude}</span>
-                            <span><strong>خط الطول:</strong> ${vehicle.gpsLongitude}</span>
-                            <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" target="_blank" class="btn btn-success btn-sm">
+                            <span><strong>خط العرض:</strong> ${safeText(vehicle.gpsLatitude)}</span>
+                            <span><strong>خط الطول:</strong> ${safeText(vehicle.gpsLongitude)}</span>
+                            <a href="${mapUrl}" target="_blank" rel="noopener noreferrer" class="btn btn-success btn-sm">
                                 <i class="fas fa-external-link-alt"></i> فتح في الخريطة
                             </a>
                         </div>
                     </div>
                 ` : ''}
                 
-                ${vehicle.images && vehicle.images.length > 0 ? `
+                ${images.length > 0 ? `
                     <h4 style="margin-top: 25px; margin-bottom: 15px;">
                         <i class="fas fa-images" style="margin-left: 8px; color: var(--primary);"></i>
-                        الصور (${vehicle.images.length})
+                        الصور (${images.length})
                     </h4>
                     <div class="view-images-gallery">
-                        ${vehicle.images.map(img => `
-                            <div class="view-image-item" onclick="openLightbox('${img}')">
+                        ${images.map(img => `
+                            <div class="view-image-item" onclick="openLightbox('${encodeURIComponent(img)}')">
                                 <img src="${img}" alt="صورة المركبة">
                             </div>
                         `).join('')}
@@ -2080,7 +2111,8 @@
                         <i class="fas fa-times"></i>
                     </button>
                 </div>
-            `).join('');
+            `;
+            }).join('');
         }
         
         function removeImage(index) {
@@ -2427,7 +2459,10 @@
         // Lightbox
         // ========================================
         function openLightbox(imageUrl) {
-            document.getElementById('lightboxImage').src = imageUrl;
+            const decodedUrl = decodeURIComponent(imageUrl);
+            const safeImageUrl = safeUrl(decodedUrl);
+            if (!safeImageUrl) return;
+            document.getElementById('lightboxImage').src = safeImageUrl;
             document.getElementById('lightbox').classList.add('show');
         }
         
@@ -3373,20 +3408,32 @@
                 return;
             }
             
-            grid.innerHTML = vehicleList.map(v => `
+            grid.innerHTML = vehicleList.map(v => {
+                const title = escapeHtml(`${v.make || ''} ${v.model || ''} ${v.year || ''}`.trim());
+                const contractNo = safeText(v.contractNo, 'بدون رقم عقد');
+                const statusClass = getRatingClass(v.overallRating);
+                const statusText = getRatingText(v.overallRating);
+                const images = (v.images || []).map((img) => safeUrl(img)).filter(Boolean);
+                const customerName = safeText(v.customerName, 'غير محدد');
+                const vin = safeText(v.vin, 'غير محدد');
+                const plateNo = safeText(v.plateNo, 'غير محدد');
+                const odometer = v.odometer ? `${parseInt(v.odometer).toLocaleString()} كم` : 'غير محدد';
+                const marketValue = v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0;
+
+                return `
                 <div class="vehicle-card">
                     <div class="vehicle-header">
                         <div>
-                            <div class="vehicle-title">${v.make || ''} ${v.model || ''} ${v.year || ''}</div>
-                            <div class="vehicle-id"><i class="fas fa-file-contract"></i> ${v.contractNo || 'بدون رقم عقد'}</div>
+                            <div class="vehicle-title">${title}</div>
+                            <div class="vehicle-id"><i class="fas fa-file-contract"></i> ${contractNo}</div>
                         </div>
-                        <span class="vehicle-status status-${v.overallRating || 'good'}">${getRatingText(v.overallRating)}</span>
+                        <span class="vehicle-status status-${statusClass}">${statusText}</span>
                     </div>
                     
-                    ${v.images && v.images.length > 0 ? `
+                    ${images.length > 0 ? `
                         <div class="vehicle-images">
-                            ${v.images.slice(0, 3).map(img => `
-                                <img src="${img}" class="vehicle-image-thumb" onclick="openLightbox('${img}')" alt="صورة المركبة">
+                            ${images.slice(0, 3).map(img => `
+                                <img src="${img}" class="vehicle-image-thumb" onclick="openLightbox('${encodeURIComponent(img)}')" alt="صورة المركبة">
                             `).join('')}
                         </div>
                     ` : ''}
@@ -3394,25 +3441,25 @@
                     <div class="vehicle-details">
                         <div class="detail-item">
                             <i class="fas fa-user"></i>
-                            <span>${v.customerName || 'غير محدد'}</span>
+                            <span>${customerName}</span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-barcode"></i>
-                            <span>${v.vin || 'غير محدد'}</span>
+                            <span>${vin}</span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-tachometer-alt"></i>
-                            <span>${v.odometer ? parseInt(v.odometer).toLocaleString() + ' كم' : 'غير محدد'}</span>
+                            <span>${escapeHtml(odometer)}</span>
                         </div>
                         <div class="detail-item">
                             <i class="fas fa-id-card"></i>
-                            <span>${v.plateNo || 'غير محدد'}</span>
+                            <span>${plateNo}</span>
                         </div>
                     </div>
                     
                     <div class="vehicle-value">
                         <span>القيمة السوقية</span>
-                        <strong>${v.marketValue ? parseInt(v.marketValue).toLocaleString() : 0} ريال</strong>
+                        <strong>${marketValue} ريال</strong>
                     </div>
                     
                     <div class="vehicle-actions">
