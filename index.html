@@ -675,6 +675,17 @@
         html.dark .feature-item {
             color: #94a3b8;
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -702,8 +713,8 @@
             </div>
 
             <div class="auth-content">
-                <div id="alertBox" class="alert">
-                    <i class="fas fa-info-circle"></i>
+                <div id="alertBox" class="alert" role="alert" aria-live="polite" aria-atomic="true">
+                    <i class="fas fa-info-circle" aria-hidden="true"></i>
                     <span id="alertText"></span>
                 </div>
 
@@ -711,20 +722,20 @@
                 <div id="loginPanel" class="form-panel active">
                     <form id="loginForm" onsubmit="handleLogin(event)">
                         <div class="form-group">
-                            <label>البريد الإلكتروني</label>
+                            <label for="loginEmail">البريد الإلكتروني</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" id="loginEmail" placeholder="example@email.com" required autocomplete="email">
+                                <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+                                <input type="email" id="loginEmail" name="loginEmail" placeholder="example@email.com" required autocomplete="email" inputmode="email" autocapitalize="none">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>كلمة المرور</label>
+                            <label for="loginPassword">كلمة المرور</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-                                <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)">
-                                    <i class="fas fa-eye"></i>
+                                <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+                                <input type="password" id="loginPassword" name="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                                <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" aria-controls="loginPassword">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -738,7 +749,7 @@
                         </div>
 
                         <button type="submit" class="btn-submit" id="loginBtn">
-                            <i class="fas fa-sign-in-alt"></i>
+                            <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
                             <span>تسجيل الدخول</span>
                         </button>
                     </form>
@@ -747,11 +758,11 @@
 
                     <div class="social-login">
                         <button type="button" class="btn-social google" id="googleLoginBtn" onclick="signInWithGoogle()">
-                            <i class="fab fa-google"></i>
+                            <i class="fab fa-google" aria-hidden="true"></i>
                             <span>Google</span>
                         </button>
                         <button type="button" class="btn-social microsoft" id="microsoftLoginBtn" onclick="signInWithMicrosoft()">
-                            <i class="fab fa-microsoft"></i>
+                            <i class="fab fa-microsoft" aria-hidden="true"></i>
                             <span>Microsoft</span>
                         </button>
                     </div>
@@ -783,28 +794,28 @@
                 <div id="registerPanel" class="form-panel">
                     <form id="registerForm" onsubmit="handleRegister(event)">
                         <div class="form-group">
-                            <label>الاسم الكامل</label>
+                            <label for="registerName">الاسم الكامل</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-user input-icon"></i>
-                                <input type="text" id="registerName" placeholder="أدخل اسمك الكامل" required autocomplete="name">
+                                <i class="fas fa-user input-icon" aria-hidden="true"></i>
+                                <input type="text" id="registerName" name="registerName" placeholder="أدخل اسمك الكامل" required autocomplete="name">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>البريد الإلكتروني</label>
+                            <label for="registerEmail">البريد الإلكتروني</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" id="registerEmail" placeholder="example@email.com" required autocomplete="email">
+                                <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+                                <input type="email" id="registerEmail" name="registerEmail" placeholder="example@email.com" required autocomplete="email" inputmode="email" autocapitalize="none">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>كلمة المرور</label>
+                            <label for="registerPassword">كلمة المرور</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
-                                <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)">
-                                    <i class="fas fa-eye"></i>
+                                <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+                                <input type="password" id="registerPassword" name="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
+                                <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" aria-controls="registerPassword">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             </div>
                             <div class="password-strength" id="passwordStrength">
@@ -816,18 +827,18 @@
                         </div>
 
                         <div class="form-group">
-                            <label>تأكيد كلمة المرور</label>
+                            <label for="confirmPassword">تأكيد كلمة المرور</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password" data-match="registerPassword">
-                                <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)">
-                                    <i class="fas fa-eye"></i>
+                                <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password" data-match="registerPassword">
+                                <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" aria-controls="confirmPassword">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
 
                         <button type="submit" class="btn-submit" id="registerBtn">
-                            <i class="fas fa-user-plus"></i>
+                            <i class="fas fa-user-plus" aria-hidden="true"></i>
                             <span>إنشاء حساب</span>
                         </button>
                     </form>
@@ -836,11 +847,11 @@
 
                     <div class="social-login">
                         <button type="button" class="btn-social google" onclick="signInWithGoogle()">
-                            <i class="fab fa-google"></i>
+                            <i class="fab fa-google" aria-hidden="true"></i>
                             <span>Google</span>
                         </button>
                         <button type="button" class="btn-social microsoft" onclick="signInWithMicrosoft()">
-                            <i class="fab fa-microsoft"></i>
+                            <i class="fab fa-microsoft" aria-hidden="true"></i>
                             <span>Microsoft</span>
                         </button>
                     </div>
@@ -849,34 +860,34 @@
                 <!-- Reset Password Panel -->
                 <div id="resetPanel" class="form-panel">
                     <div class="reset-header">
-                        <i class="fas fa-key"></i>
+                        <i class="fas fa-key" aria-hidden="true"></i>
                         <h3>استعادة كلمة المرور</h3>
                         <p>أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور</p>
                     </div>
 
                     <div class="success-message" id="resetSuccess">
-                        <i class="fas fa-check-circle"></i>
+                        <i class="fas fa-check-circle" aria-hidden="true"></i>
                         <strong>تم الإرسال بنجاح!</strong>
                         <p style="margin-top: 10px;">تحقق من بريدك الإلكتروني للحصول على رابط إعادة التعيين</p>
                     </div>
 
                     <form id="resetForm" onsubmit="handleResetPassword(event)">
                         <div class="form-group">
-                            <label>البريد الإلكتروني</label>
+                            <label for="resetEmail">البريد الإلكتروني</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" id="resetEmail" placeholder="example@email.com" required>
+                                <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+                                <input type="email" id="resetEmail" name="resetEmail" placeholder="example@email.com" required autocomplete="email" inputmode="email" autocapitalize="none">
                             </div>
                         </div>
 
                         <button type="submit" class="btn-submit" id="resetBtn">
-                            <i class="fas fa-paper-plane"></i>
+                            <i class="fas fa-paper-plane" aria-hidden="true"></i>
                             <span>إرسال رابط الاستعادة</span>
                         </button>
                     </form>
 
                     <button class="btn-back" onclick="showLoginPanel()">
-                        <i class="fas fa-arrow-right"></i>
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
                         العودة لتسجيل الدخول
                     </button>
                 </div>
@@ -890,14 +901,14 @@
 
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
-            <div class="loading-spinner"></div>
+            <div class="loading-spinner" aria-hidden="true"></div>
             <p id="loadingText">جاري المعالجة...</p>
         </div>
     </div>
 
     <!-- Version Badge -->
     <div class="version-badge">
-        <i class="fas fa-code-branch"></i> v6.0 Supabase
+        <i class="fas fa-code-branch" aria-hidden="true"></i> v6.0 Supabase
     </div>
 
     <!-- Supabase SDK -->
@@ -997,9 +1008,13 @@
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.className = 'fas fa-eye-slash';
+                button.setAttribute('aria-label', 'إخفاء كلمة المرور');
+                button.setAttribute('aria-pressed', 'true');
             } else {
                 input.type = 'password';
                 icon.className = 'fas fa-eye';
+                button.setAttribute('aria-label', 'إظهار كلمة المرور');
+                button.setAttribute('aria-pressed', 'false');
             }
         }
 
