@@ -4,6 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="ألبوم صور المركبة - نظام تقييم المركبات المستردة">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; object-src 'none'; script-src 'self' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com 'unsafe-inline'; style-src 'self' https://fonts.googleapis.com https://cdnjs.cloudflare.com 'unsafe-inline'; font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; img-src 'self' data: https:; connect-src 'self' https://*.supabase.co https://api.supabase.com; upgrade-insecure-requests">
+    <meta http-equiv="Referrer-Policy" content="strict-origin-when-cross-origin">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta http-equiv="Permissions-Policy" content="geolocation=(self)">
     <meta name="theme-color" content="#667eea">
     <title>ألبوم صور المركبة - نظام تقييم المركبات</title>
     
@@ -15,6 +19,7 @@
     <link rel="stylesheet" href="css/animations.css">
     
     <!-- Supabase SDK -->
+    <script src="js/security-utils.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     
     <!-- Supabase Config -->
@@ -514,6 +519,7 @@
         let currentImageIndex = 0;
         let vehicleData = null;
         let supabaseClient = null;
+        const { escapeHtml, safeText, safeUrl } = window.SecurityUtils;
         
         // Get vehicle ID from URL
         function getVehicleId() {
@@ -603,7 +609,9 @@
                 return;
             }
             
-            currentImages = vehicle.images;
+            currentImages = (vehicle.images || [])
+                .map((img) => safeUrl(img))
+                .filter(Boolean);
             document.getElementById('albumContent').style.display = 'block';
             
             // Vehicle info
@@ -611,30 +619,33 @@
             vehicleInfo.innerHTML = `
                 <div class="info-item">
                     <i class="fas fa-car"></i>
-                    <span>${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}</span>
+                    <span>${escapeHtml(`${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim())}</span>
                 </div>
                 <div class="info-item">
                     <i class="fas fa-file-contract"></i>
-                    <span>عقد: ${vehicle.contractNo || '-'}</span>
+                    <span>عقد: ${safeText(vehicle.contractNo)}</span>
                 </div>
                 <div class="info-item">
                     <i class="fas fa-user"></i>
-                    <span>${vehicle.customerName || '-'}</span>
+                    <span>${safeText(vehicle.customerName)}</span>
                 </div>
                 <div class="info-item">
                     <i class="fas fa-barcode"></i>
-                    <span>VIN: ${vehicle.vin || '-'}</span>
+                    <span>VIN: ${safeText(vehicle.vin)}</span>
                 </div>
             `;
             
             // GPS section
             if (vehicle.gpsLatitude && vehicle.gpsLongitude) {
                 document.getElementById('gpsSection').style.display = 'block';
+                const latitude = safeText(vehicle.gpsLatitude);
+                const longitude = safeText(vehicle.gpsLongitude);
+                const mapUrl = safeUrl(`https://www.google.com/maps?q=${encodeURIComponent(vehicle.gpsLatitude)},${encodeURIComponent(vehicle.gpsLongitude)}`);
                 document.getElementById('gpsInfo').innerHTML = `
-                    <span><strong>خط العرض:</strong> ${vehicle.gpsLatitude}</span>
-                    <span><strong>خط الطول:</strong> ${vehicle.gpsLongitude}</span>
-                    <a href="https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}" 
-                       target="_blank" class="btn btn-primary" style="background: #22c55e;">
+                    <span><strong>خط العرض:</strong> ${latitude}</span>
+                    <span><strong>خط الطول:</strong> ${longitude}</span>
+                    <a href="${mapUrl}" 
+                       target="_blank" rel="noopener noreferrer" class="btn btn-primary" style="background: #22c55e;">
                         <i class="fas fa-external-link-alt"></i>
                         فتح في الخريطة
                     </a>
@@ -642,13 +653,13 @@
             }
             
             // Stats
-            document.getElementById('photoCount').textContent = vehicle.images.length;
+            document.getElementById('photoCount').textContent = currentImages.length;
             const updateDate = vehicle.updated_at ? new Date(vehicle.updated_at).toLocaleDateString('ar-SA') : new Date().toLocaleDateString('ar-SA');
             document.getElementById('albumDate').textContent = updateDate;
             
             // Album grid
             const grid = document.getElementById('albumGrid');
-            grid.innerHTML = vehicle.images.map((img, index) => `
+            grid.innerHTML = currentImages.map((img, index) => `
                 <div class="album-item" onclick="openLightbox(${index})">
                     <span class="album-item-number">${index + 1}</span>
                     <img src="${img}" alt="صورة ${index + 1}" loading="lazy">
