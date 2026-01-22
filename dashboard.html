@@ -3501,9 +3501,18 @@
                 
                 // Trigger refresh if needed
                 if (targetId === 'activities' && window.NFActivity) {
+                    console.log('Refreshing activities section');
                     window.NFActivity.refreshActivities();
                 } else if (targetId === 'warehouse' && window.NFWarehouse) {
-                    // Trigger warehouse refresh logic if any
+                    console.log('Refreshing warehouse section');
+                    if (typeof window.NFWarehouse.refreshWarehouses === 'function') {
+                        window.NFWarehouse.refreshWarehouses();
+                    }
+                } else if (targetId === 'evaluators' && window.NFEvaluators) {
+                    console.log('Refreshing evaluators section');
+                    if (typeof window.NFEvaluators.refreshEvaluators === 'function') {
+                        window.NFEvaluators.refreshEvaluators();
+                    }
                 }
             }
             

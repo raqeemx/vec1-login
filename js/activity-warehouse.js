@@ -339,6 +339,25 @@ window.NFActivity = (function() {
         }
     }
     
+    // Refresh warehouses
+    async function refreshWarehouses() {
+        const container = document.getElementById('warehouseSection');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        
+        try {
+            const warehouses = await getWarehouses();
+            // We need vehicle stats for the warehouse page
+            const stats = {}; 
+            // Mock stats if needed
+            container.innerHTML = createWarehousePageHTML(warehouses, stats);
+        } catch (error) {
+            console.error('Error refreshing warehouses:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل المستودعات</div>';
+        }
+    }
+    
     console.log('📋 NFActivity initialized');
     
     return {
@@ -348,7 +367,8 @@ window.NFActivity = (function() {
         format: formatActivity,
         createPageHTML: createActivitiesPageHTML,
         filterActivities,
-        refreshActivities
+        refreshActivities,
+        refreshWarehouses
     };
 })();
 
