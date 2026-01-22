@@ -1131,6 +1131,24 @@
                 </div>
             </header>
 
+            <!-- Search and Filter Bar -->
+            <div class="search-filter-bar" style="padding: 0 30px; margin-top: 20px;">
+                <div class="search-wrapper" style="position: relative; display: flex; gap: 10px;">
+                    <div style="position: relative; flex: 1;">
+                        <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="advancedSearchInput" placeholder="ابحث برقم الشاصي (VIN)، رقم اللوحة، أو اسم العميل..." 
+                               style="width: 100%; padding: 12px 45px 12px 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-family: inherit;">
+                    </div>
+                    <select id="vehicleTypeFilter" style="padding: 12px 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-family: inherit; background: white; cursor: pointer;">
+                        <option value="all">جميع أنواع المركبات</option>
+                        <option value="sedan">سيدان</option>
+                        <option value="suv">دفع رباعي (SUV)</option>
+                        <option value="pickup">بيك أب</option>
+                        <option value="van">فان</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Filters Section (New Feature) -->
             <div id="nf-filters-container" style="padding: 20px 30px 0;"></div>
             
