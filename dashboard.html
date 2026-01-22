@@ -294,6 +294,31 @@
             color: var(--primary);
         }
 
+        /* Content Sections - Show only active section */
+        .content-section {
+            display: none !important;
+            opacity: 0;
+            transform: translateY(10px);
+        }
+        
+        .content-section.active {
+            display: block !important;
+            opacity: 1;
+            transform: translateY(0);
+            animation: sectionFadeIn 0.4s ease-out;
+        }
+        
+        @keyframes sectionFadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(15px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
         /* Vehicles Grid */
         .vehicles-section {
             padding: 30px;
@@ -1161,9 +1186,13 @@
                     <span>تصدير JSON</span>
                 </div>
 
-                <div class="menu-item" onclick="document.getElementById('importFile').click()">
+                <div class="menu-item" onclick="showImportOptions()">
                     <i class="fas fa-file-import"></i>
                     <span>استيراد بيانات</span>
+                </div>
+                <div class="menu-item" onclick="document.getElementById('importExcelFile').click()">
+                    <i class="fas fa-file-excel" style="color: #10b981;"></i>
+                    <span>استيراد من Excel</span>
                 </div>
                 <div class="menu-item" onclick="handleLogout()">
                     <i class="fas fa-sign-out-alt"></i>
@@ -1232,8 +1261,9 @@
         </main>
     </div>
 
-    <!-- Hidden file input for import -->
+    <!-- Hidden file inputs for import -->
     <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImport(event)">
+    <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="display: none;" onchange="handleExcelImport(event)">
 
     <!-- Add/Edit Modal -->
     <div class="modal" id="vehicleModal">
@@ -2868,10 +2898,430 @@
                 
                 hideLoading();
                 showNotification(`تم استيراد ${vehiclesList.length} مركبة بنجاح!`, 'success');
+                
+                // Log activity
+                if (window.NFActivity) {
+                    NFActivity.log('IMPORT_DATA', { count: vehiclesList.length, format: 'JSON' });
+                }
             } catch (error) {
                 console.error('Import Error:', error);
                 hideLoading();
                 showNotification('خطأ في الاستيراد: ' + error.message, 'error');
+            }
+        }
+        
+        // ========================================
+        // Excel Import Function
+        // ========================================
+        function showImportOptions() {
+            const modalHTML = `
+                <div class="modal show" id="importOptionsModal" onclick="if(event.target===this)this.remove()">
+                    <div class="modal-content" style="max-width: 500px;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-file-import" style="margin-left: 10px; color: var(--primary);"></i>استيراد البيانات</h3>
+                            <button class="btn-close" onclick="document.getElementById('importOptionsModal').remove()">&times;</button>
+                        </div>
+                        <div class="modal-body" style="text-align: center;">
+                            <p style="margin-bottom: 25px; color: #64748b;">اختر نوع الملف الذي تريد استيراده:</p>
+                            
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+                                <div class="import-option-card" onclick="document.getElementById('importOptionsModal').remove(); document.getElementById('importExcelFile').click();" 
+                                     style="padding: 25px; border: 2px solid #10b981; border-radius: 16px; cursor: pointer; transition: all 0.3s; background: #f0fdf4;">
+                                    <i class="fas fa-file-excel" style="font-size: 3rem; color: #10b981; margin-bottom: 15px;"></i>
+                                    <h4 style="color: #065f46; margin-bottom: 5px;">ملف Excel</h4>
+                                    <p style="font-size: 0.85rem; color: #64748b;">.xlsx, .xls</p>
+                                </div>
+                                
+                                <div class="import-option-card" onclick="document.getElementById('importOptionsModal').remove(); document.getElementById('importFile').click();" 
+                                     style="padding: 25px; border: 2px solid #3b82f6; border-radius: 16px; cursor: pointer; transition: all 0.3s; background: #eff6ff;">
+                                    <i class="fas fa-file-code" style="font-size: 3rem; color: #3b82f6; margin-bottom: 15px;"></i>
+                                    <h4 style="color: #1e40af; margin-bottom: 5px;">ملف JSON</h4>
+                                    <p style="font-size: 0.85rem; color: #64748b;">.json</p>
+                                </div>
+                            </div>
+                            
+                            <div style="margin-top: 25px; padding: 15px; background: #fef3c7; border-radius: 12px; text-align: right;">
+                                <h5 style="color: #92400e; margin-bottom: 8px;"><i class="fas fa-info-circle"></i> تعليمات الاستيراد من Excel:</h5>
+                                <ul style="color: #92400e; font-size: 0.85rem; margin: 0; padding-right: 20px;">
+                                    <li>الصف الأول يجب أن يحتوي على عناوين الأعمدة</li>
+                                    <li>الأعمدة المدعومة: رقم العقد، اسم العميل، الصانع، الموديل، السنة، VIN، رقم اللوحة، عداد المسافات، اللون، نوع الوقود، القيمة السوقية، التقييم، التوصية، ملاحظات</li>
+                                    <li>لا يتم استيراد الصور من ملف Excel</li>
+                                </ul>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-outline" onclick="document.getElementById('importOptionsModal').remove()">إغلاق</button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        async function handleExcelImport(event) {
+            const file = event.target.files[0];
+            if (!file) return;
+            
+            // Check if XLSX library is loaded
+            if (typeof XLSX === 'undefined') {
+                showNotification('مكتبة Excel غير متاحة. يرجى تحديث الصفحة.', 'error');
+                event.target.value = '';
+                return;
+            }
+            
+            showLoading('جاري قراءة ملف Excel...');
+            
+            try {
+                const arrayBuffer = await file.arrayBuffer();
+                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+                
+                // Get the first sheet
+                const firstSheetName = workbook.SheetNames[0];
+                const worksheet = workbook.Sheets[firstSheetName];
+                
+                // Convert to JSON
+                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
+                
+                if (!jsonData || jsonData.length === 0) {
+                    hideLoading();
+                    showNotification('الملف فارغ أو لا يحتوي على بيانات صالحة', 'warning');
+                    event.target.value = '';
+                    return;
+                }
+                
+                hideLoading();
+                
+                // Show preview and confirmation
+                showExcelImportPreview(jsonData, file.name);
+                
+            } catch (error) {
+                console.error('Excel Read Error:', error);
+                hideLoading();
+                showNotification('خطأ في قراءة ملف Excel: ' + error.message, 'error');
+            }
+            
+            event.target.value = '';
+        }
+        
+        function showExcelImportPreview(data, filename) {
+            // Map common column names (Arabic and English)
+            const columnMappings = {
+                // Arabic column names
+                'رقم العقد': 'contractNo',
+                'رقم_العقد': 'contractNo',
+                'اسم العميل': 'customerName',
+                'اسم_العميل': 'customerName',
+                'العميل': 'customerName',
+                'الصانع': 'make',
+                'الشركة المصنعة': 'make',
+                'الموديل': 'model',
+                'النوع': 'model',
+                'السنة': 'year',
+                'سنة الصنع': 'year',
+                'رقم الشاصي': 'vin',
+                'VIN': 'vin',
+                'vin': 'vin',
+                'الشاصي': 'vin',
+                'رقم اللوحة': 'plateNo',
+                'رقم_اللوحة': 'plateNo',
+                'اللوحة': 'plateNo',
+                'عداد المسافات': 'odometer',
+                'المسافة': 'odometer',
+                'الكيلومترات': 'odometer',
+                'اللون': 'color',
+                'نوع الوقود': 'fuelType',
+                'الوقود': 'fuelType',
+                'القيمة السوقية': 'marketValue',
+                'القيمة': 'marketValue',
+                'السعر': 'marketValue',
+                'التقييم العام': 'overallRating',
+                'التقييم': 'overallRating',
+                'التوصية': 'recommendation',
+                'حالة التشغيل': 'operationStatus',
+                'الحالة': 'operationStatus',
+                'المستودع': 'warehouse',
+                'موقع الاسترداد': 'recoveryLocation',
+                'تاريخ الاسترداد': 'recoveryDate',
+                'القائم بالتقييم': 'evaluatorName',
+                'المقيم': 'evaluatorName',
+                'ملاحظات': 'notes',
+                'الملاحظات': 'notes',
+                // English column names
+                'contractNo': 'contractNo',
+                'customerName': 'customerName',
+                'make': 'make',
+                'model': 'model',
+                'year': 'year',
+                'plateNo': 'plateNo',
+                'odometer': 'odometer',
+                'color': 'color',
+                'fuelType': 'fuelType',
+                'marketValue': 'marketValue',
+                'overallRating': 'overallRating',
+                'recommendation': 'recommendation',
+                'operationStatus': 'operationStatus',
+                'warehouse': 'warehouse',
+                'warehouseName': 'warehouseName',
+                'recoveryDate': 'recoveryDate',
+                'recoveryLocation': 'recoveryLocation',
+                'evaluatorName': 'evaluatorName',
+                'notes': 'notes',
+                'gpsLatitude': 'gpsLatitude',
+                'gpsLongitude': 'gpsLongitude',
+                // Common variations
+                'Contract No': 'contractNo',
+                'Customer Name': 'customerName',
+                'Make': 'make',
+                'Model': 'model',
+                'Year': 'year',
+                'Plate No': 'plateNo',
+                'Odometer': 'odometer',
+                'Color': 'color',
+                'Fuel Type': 'fuelType',
+                'Market Value': 'marketValue',
+                'Overall Rating': 'overallRating',
+                'Recommendation': 'recommendation',
+                'Notes': 'notes'
+            };
+            
+            // Get original column names from Excel
+            const originalColumns = Object.keys(data[0] || {});
+            
+            // Map the data
+            const mappedData = data.map(row => {
+                const mappedRow = {};
+                Object.entries(row).forEach(([key, value]) => {
+                    const mappedKey = columnMappings[key] || key;
+                    mappedRow[mappedKey] = value;
+                });
+                return mappedRow;
+            });
+            
+            // Show preview modal
+            const previewRows = mappedData.slice(0, 5);
+            const modalHTML = `
+                <div class="modal show" id="excelPreviewModal" onclick="if(event.target===this)this.remove()">
+                    <div class="modal-content" style="max-width: 900px;">
+                        <div class="modal-header">
+                            <h3><i class="fas fa-file-excel" style="margin-left: 10px; color: #10b981;"></i>معاينة بيانات Excel</h3>
+                            <button class="btn-close" onclick="document.getElementById('excelPreviewModal').remove()">&times;</button>
+                        </div>
+                        <div class="modal-body">
+                            <div style="background: #ecfdf5; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
+                                <p style="margin: 0; color: #065f46;">
+                                    <i class="fas fa-file-excel" style="margin-left: 8px;"></i>
+                                    <strong>الملف:</strong> ${filename} | 
+                                    <strong>عدد السجلات:</strong> ${data.length} مركبة
+                                </p>
+                            </div>
+                            
+                            <h4 style="margin-bottom: 15px; color: var(--dark);">
+                                <i class="fas fa-table" style="margin-left: 8px;"></i>
+                                معاينة أول ${previewRows.length} سجلات:
+                            </h4>
+                            
+                            <div style="overflow-x: auto; margin-bottom: 20px; border-radius: 12px; border: 1px solid #e5e7eb;">
+                                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                    <thead>
+                                        <tr style="background: #f8fafc;">
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">#</th>
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">رقم العقد</th>
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">اسم العميل</th>
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">الصانع</th>
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">الموديل</th>
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">السنة</th>
+                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">القيمة</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        ${previewRows.map((row, idx) => `
+                                            <tr style="background: ${idx % 2 === 0 ? 'white' : '#f8fafc'};">
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${idx + 1}</td>
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.contractNo || '-'}</td>
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.customerName || '-'}</td>
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.make || '-'}</td>
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.model || '-'}</td>
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.year || '-'}</td>
+                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.marketValue ? parseInt(row.marketValue).toLocaleString() + ' ر.س' : '-'}</td>
+                                            </tr>
+                                        `).join('')}
+                                    </tbody>
+                                </table>
+                            </div>
+                            
+                            ${data.length > 5 ? `<p style="color: #64748b; text-align: center; margin-bottom: 20px;">...و ${data.length - 5} سجل آخر</p>` : ''}
+                            
+                            <div style="background: #fef3c7; padding: 15px; border-radius: 12px;">
+                                <p style="margin: 0; color: #92400e;">
+                                    <i class="fas fa-info-circle" style="margin-left: 8px;"></i>
+                                    <strong>ملاحظة:</strong> سيتم استيراد ${data.length} مركبة بدون صور. يمكنك إضافة الصور لاحقاً من خلال تعديل كل مركبة.
+                                </p>
+                            </div>
+                        </div>
+                        <div class="modal-footer">
+                            <button class="btn btn-outline" onclick="document.getElementById('excelPreviewModal').remove()">
+                                <i class="fas fa-times"></i> إلغاء
+                            </button>
+                            <button class="btn btn-success" onclick="confirmExcelImport()">
+                                <i class="fas fa-file-import"></i> استيراد ${data.length} مركبة
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Store mapped data for import
+            window._pendingExcelImport = mappedData;
+            
+            document.body.insertAdjacentHTML('beforeend', modalHTML);
+        }
+        
+        async function confirmExcelImport() {
+            const data = window._pendingExcelImport;
+            if (!data || data.length === 0) {
+                showNotification('لا توجد بيانات للاستيراد', 'warning');
+                return;
+            }
+            
+            // Close preview modal
+            document.getElementById('excelPreviewModal')?.remove();
+            
+            // Ensure Supabase client is initialized
+            if (!supabaseClient) {
+                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
+                return;
+            }
+            
+            showLoading(`جاري استيراد ${data.length} مركبة من Excel...`);
+            
+            try {
+                // Rating mappings
+                const ratingMap = {
+                    'ممتاز': 'excellent',
+                    'جيد': 'good',
+                    'مقبول': 'fair',
+                    'ضعيف': 'poor',
+                    'excellent': 'excellent',
+                    'good': 'good',
+                    'fair': 'fair',
+                    'poor': 'poor'
+                };
+                
+                // Recommendation mappings
+                const recommendationMap = {
+                    'البيع كما هي': 'sell_as_is',
+                    'إصلاح ثم بيع': 'repair_sell',
+                    'مزاد': 'auction',
+                    'تخريد': 'scrap',
+                    'sell_as_is': 'sell_as_is',
+                    'repair_sell': 'repair_sell',
+                    'auction': 'auction',
+                    'scrap': 'scrap'
+                };
+                
+                // Fuel type mappings
+                const fuelTypeMap = {
+                    'بنزين': 'petrol',
+                    'ديزل': 'diesel',
+                    'هجين': 'hybrid',
+                    'كهربائي': 'electric',
+                    'petrol': 'petrol',
+                    'diesel': 'diesel',
+                    'hybrid': 'hybrid',
+                    'electric': 'electric'
+                };
+                
+                // Operation status mappings
+                const statusMap = {
+                    'تعمل': 'working',
+                    'لا تعمل': 'not_working',
+                    'تحتاج صيانة': 'needs_maintenance',
+                    'working': 'working',
+                    'not_working': 'not_working',
+                    'needs_maintenance': 'needs_maintenance'
+                };
+                
+                // Prepare vehicles for insert
+                const vehiclesToInsert = data.map(row => ({
+                    contractNo: cleanValue(row.contractNo),
+                    customerName: cleanValue(row.customerName),
+                    make: cleanValue(row.make),
+                    model: cleanValue(row.model),
+                    year: parseIntValue(row.year),
+                    vin: cleanValue(row.vin)?.toUpperCase() || null,
+                    plateNo: cleanValue(row.plateNo),
+                    odometer: parseIntValue(row.odometer),
+                    color: cleanValue(row.color),
+                    fuelType: fuelTypeMap[row.fuelType] || cleanValue(row.fuelType),
+                    marketValue: parseNumericValue(row.marketValue),
+                    overallRating: ratingMap[row.overallRating] || cleanValue(row.overallRating) || 'good',
+                    recommendation: recommendationMap[row.recommendation] || cleanValue(row.recommendation),
+                    operationStatus: statusMap[row.operationStatus] || cleanValue(row.operationStatus),
+                    warehouse: cleanValue(row.warehouse),
+                    warehouseName: cleanValue(row.warehouseName),
+                    recoveryDate: cleanValue(row.recoveryDate),
+                    recoveryLocation: cleanValue(row.recoveryLocation),
+                    evaluatorName: cleanValue(row.evaluatorName),
+                    gpsLatitude: cleanValue(row.gpsLatitude),
+                    gpsLongitude: cleanValue(row.gpsLongitude),
+                    notes: cleanValue(row.notes),
+                    images: [], // No images from Excel
+                    user_id: currentUser.id,
+                    created_at: new Date().toISOString(),
+                    updated_at: new Date().toISOString(),
+                    deleted: false
+                }));
+                
+                // Filter out completely empty rows
+                const validVehicles = vehiclesToInsert.filter(v => 
+                    v.contractNo || v.customerName || v.make || v.model || v.vin
+                );
+                
+                if (validVehicles.length === 0) {
+                    hideLoading();
+                    showNotification('لا توجد بيانات صالحة للاستيراد. تأكد من أن الملف يحتوي على بيانات في الأعمدة الصحيحة.', 'warning');
+                    return;
+                }
+                
+                // Insert in batches of 50
+                const batchSize = 50;
+                let insertedCount = 0;
+                
+                for (let i = 0; i < validVehicles.length; i += batchSize) {
+                    const batch = validVehicles.slice(i, i + batchSize);
+                    
+                    const { error } = await supabaseClient
+                        .from('vehicles')
+                        .insert(batch);
+                    
+                    if (error) throw error;
+                    
+                    insertedCount += batch.length;
+                    showLoading(`جاري الاستيراد... (${insertedCount}/${validVehicles.length})`);
+                }
+                
+                // Reload vehicles
+                await loadVehicles();
+                
+                hideLoading();
+                showNotification(`تم استيراد ${validVehicles.length} مركبة من Excel بنجاح!`, 'success');
+                
+                // Log activity
+                if (window.NFActivity) {
+                    NFActivity.log('IMPORT_DATA', { 
+                        count: validVehicles.length, 
+                        format: 'Excel',
+                        originalCount: data.length
+                    });
+                }
+                
+                // Clear pending data
+                window._pendingExcelImport = null;
+                
+            } catch (error) {
+                console.error('Excel Import Error:', error);
+                hideLoading();
+                showNotification('خطأ في استيراد البيانات: ' + error.message, 'error');
             }
         }
 
@@ -3054,9 +3504,11 @@
         }
         
         // Current active section
-        let currentSection = 'vehicles';
+        let currentSection = 'dashboard';
         
         async function showSection(section) {
+            // Store previous section for animation
+            const prevSection = currentSection;
             currentSection = section;
             
             // Update menu active state
@@ -3068,37 +3520,80 @@
                 if (menuItem) menuItem.classList.add('active');
             }
             
-            // Hide all sections
-            document.querySelectorAll('.content-section').forEach(sec => {
+            // Hide ALL sections first
+            const allSections = document.querySelectorAll('.content-section');
+            allSections.forEach(sec => {
                 sec.classList.remove('active');
             });
             
             // Show filters and stats only for vehicles/dashboard sections
             const filtersContainer = document.getElementById('nf-filters-container');
             const statsContainer = document.getElementById('nf-enhanced-stats');
+            const topBarTitle = document.querySelector('.top-bar h1');
             
-            if (section === 'dashboard' || section === 'vehicles') {
-                if (filtersContainer) filtersContainer.style.display = 'block';
-                if (statsContainer) statsContainer.style.display = 'block';
-                document.getElementById('vehiclesSection').classList.add('active');
-            } else {
-                if (filtersContainer) filtersContainer.style.display = 'none';
-                if (statsContainer) statsContainer.style.display = 'none';
+            // Update page title based on section
+            const sectionTitles = {
+                'dashboard': 'لوحة التحكم',
+                'vehicles': 'المركبات',
+                'activities': 'سجل النشاطات',
+                'warehouse': 'المستودعات',
+                'evaluators': 'القائمين بالتقييم'
+            };
+            
+            const sectionIcons = {
+                'dashboard': 'th-large',
+                'vehicles': 'car',
+                'activities': 'history',
+                'warehouse': 'warehouse',
+                'evaluators': 'user-tie'
+            };
+            
+            // Update top bar title
+            if (topBarTitle) {
+                const userName = document.getElementById('profileName')?.textContent || 'المستخدم';
+                if (section === 'dashboard' || section === 'vehicles') {
+                    topBarTitle.innerHTML = `مرحباً، <span id="profileName">${userName}</span> 👋`;
+                } else {
+                    topBarTitle.innerHTML = `<i class="fas fa-${sectionIcons[section] || 'circle'}" style="margin-left: 10px; color: var(--primary);"></i>${sectionTitles[section] || section}`;
+                }
             }
             
-            // Handle specific sections
-            if (section === 'activities') {
-                const activitiesSection = document.getElementById('activitiesSection');
-                activitiesSection.classList.add('active');
-                await loadActivitiesPage();
-            } else if (section === 'warehouse') {
-                const warehouseSection = document.getElementById('warehouseSection');
-                warehouseSection.classList.add('active');
-                await loadWarehousePage();
-            } else if (section === 'evaluators') {
-                const evaluatorsSection = document.getElementById('evaluatorsSection');
-                evaluatorsSection.classList.add('active');
-                await loadEvaluatorsPage();
+            // Handle each section type
+            if (section === 'dashboard' || section === 'vehicles') {
+                // Show filters and stats for vehicles view
+                if (filtersContainer) filtersContainer.style.display = 'block';
+                if (statsContainer) statsContainer.style.display = 'block';
+                
+                // Show vehicles section
+                const vehiclesSection = document.getElementById('vehiclesSection');
+                if (vehiclesSection) {
+                    setTimeout(() => vehiclesSection.classList.add('active'), 10);
+                }
+            } else {
+                // Hide filters and stats for non-vehicle sections
+                if (filtersContainer) filtersContainer.style.display = 'none';
+                if (statsContainer) statsContainer.style.display = 'none';
+                
+                // Show the selected section
+                if (section === 'activities') {
+                    const activitiesSection = document.getElementById('activitiesSection');
+                    if (activitiesSection) {
+                        setTimeout(() => activitiesSection.classList.add('active'), 10);
+                        await loadActivitiesPage();
+                    }
+                } else if (section === 'warehouse') {
+                    const warehouseSection = document.getElementById('warehouseSection');
+                    if (warehouseSection) {
+                        setTimeout(() => warehouseSection.classList.add('active'), 10);
+                        await loadWarehousePage();
+                    }
+                } else if (section === 'evaluators') {
+                    const evaluatorsSection = document.getElementById('evaluatorsSection');
+                    if (evaluatorsSection) {
+                        setTimeout(() => evaluatorsSection.classList.add('active'), 10);
+                        await loadEvaluatorsPage();
+                    }
+                }
             }
             
             // Close mobile sidebar
