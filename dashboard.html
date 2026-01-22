@@ -3053,18 +3053,47 @@
         // Load warehouse page
         async function loadWarehousePage() {
             const container = document.getElementById('warehouseSection');
+            if (!container) {
+                console.error('Warehouse section container not found');
+                return;
+            }
+            
             container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...</div>';
+            
+            // Small delay to ensure NFWarehouse is fully loaded
+            await new Promise(resolve => setTimeout(resolve, 100));
             
             try {
                 // Use NFWarehouse if available
-                if (window.NFWarehouse) {
-                    const warehouses = await NFWarehouse.getAll();
-                    const stats = await NFWarehouse.getStats(vehicles || []);
-                    container.innerHTML = NFWarehouse.createPageHTML(warehouses, stats);
-                    return;
+                if (window.NFWarehouse && typeof window.NFWarehouse.getAll === 'function') {
+                    console.log('Loading warehouses using NFWarehouse...');
+                    
+                    // Add timeout to prevent infinite loading
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout - warehouse loading took too long')), 8000)
+                    );
+                    
+                    const warehousesPromise = window.NFWarehouse.getAll();
+                    const warehouses = await Promise.race([warehousesPromise, timeoutPromise]);
+                    
+                    console.log('Warehouses received:', warehouses);
+                    
+                    const stats = await window.NFWarehouse.getStats(vehicles || []);
+                    console.log('Stats received:', stats);
+                    
+                    if (typeof window.NFWarehouse.createPageHTML === 'function') {
+                        container.innerHTML = window.NFWarehouse.createPageHTML(warehouses, stats);
+                        console.log('Warehouses page rendered successfully');
+                        return;
+                    } else {
+                        console.error('createPageHTML function not found');
+                    }
+                } else {
+                    console.log('NFWarehouse not available or getAll not a function');
+                    console.log('NFWarehouse:', window.NFWarehouse);
                 }
             } catch (error) {
-                console.error('Error loading warehouses:', error);
+                console.error('Error loading warehouses:', error.message || error);
             }
             
             // Fallback warehouse display
@@ -3540,8 +3569,6 @@
             }
         };
     </script>
-    <!-- Activity & Warehouse Scripts -->
-    <script src="js/activity-warehouse.js"></script>
     
     <script>
         // Override showSection to handle activity log loading

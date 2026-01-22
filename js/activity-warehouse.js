@@ -384,6 +384,8 @@ window.NFWarehouse = (function() {
     
     // Get warehouses - Support both Firebase and Supabase
     async function getWarehouses() {
+        console.log('🏭 Getting warehouses...');
+        
         // Try Supabase first
         if (window.supabaseClient && window.currentUser) {
             try {
@@ -393,49 +395,58 @@ window.NFWarehouse = (function() {
                     .eq('user_id', window.currentUser.id)
                     .order('name');
                 
-                if (error) throw error;
-                
-                if (!data || data.length === 0) {
-                    // Return defaults but don't auto-create in Supabase
+                // If table doesn't exist or other error, use defaults
+                if (error) {
+                    console.warn('Warehouses table error (using defaults):', error.message);
                     return DEFAULT_WAREHOUSES;
                 }
                 
+                if (!data || data.length === 0) {
+                    console.log('No warehouses found, using defaults');
+                    return DEFAULT_WAREHOUSES;
+                }
+                
+                console.log('Loaded warehouses from Supabase:', data.length);
                 return data;
             } catch (error) {
-                console.error('Error fetching warehouses from Supabase:', error);
+                console.warn('Error fetching warehouses from Supabase (using defaults):', error);
                 return DEFAULT_WAREHOUSES;
             }
         }
         
         // Fallback to Firebase
-        if (!window.currentUser || !window.db) return DEFAULT_WAREHOUSES;
-        
-        try {
-            const snapshot = await window.db.collection('users')
-                .doc(window.currentUser.uid)
-                .collection('warehouses')
-                .get();
-            
-            if (snapshot.empty) {
-                // Initialize with defaults
-                for (const wh of DEFAULT_WAREHOUSES) {
-                    await window.db.collection('users')
-                        .doc(window.currentUser.uid)
-                        .collection('warehouses')
-                        .doc(wh.id)
-                        .set(wh);
+        if (window.db && window.currentUser && window.currentUser.uid) {
+            try {
+                const snapshot = await window.db.collection('users')
+                    .doc(window.currentUser.uid)
+                    .collection('warehouses')
+                    .get();
+                
+                if (snapshot.empty) {
+                    // Initialize with defaults
+                    for (const wh of DEFAULT_WAREHOUSES) {
+                        await window.db.collection('users')
+                            .doc(window.currentUser.uid)
+                            .collection('warehouses')
+                            .doc(wh.id)
+                            .set(wh);
+                    }
+                    return DEFAULT_WAREHOUSES;
                 }
+                
+                return snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+            } catch (error) {
+                console.warn('Error fetching warehouses from Firebase (using defaults):', error);
                 return DEFAULT_WAREHOUSES;
             }
-            
-            return snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-        } catch (error) {
-            console.error('Error fetching warehouses:', error);
-            return DEFAULT_WAREHOUSES;
         }
+        
+        // No database available, return defaults
+        console.log('No database available, using default warehouses');
+        return DEFAULT_WAREHOUSES;
     }
     
     // Add warehouse - Support both Firebase and Supabase
@@ -714,9 +725,7 @@ window.NFWarehouse = (function() {
         container.innerHTML = createWarehousePageHTML(warehouses, stats);
     }
     
-    console.log('🏭 NFWarehouse initialized');
-    
-    return {
+    const publicAPI = {
         getAll: getWarehouses,
         add: addWarehouse,
         getStats: getWarehouseStats,
@@ -728,6 +737,10 @@ window.NFWarehouse = (function() {
         viewVehicles,
         refresh: refreshWarehousePage
     };
+    
+    console.log('🏭 NFWarehouse initialized with methods:', Object.keys(publicAPI));
+    
+    return publicAPI;
 })();
 
 // ===== Vehicle Operation Status =====
