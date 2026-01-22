@@ -167,6 +167,11 @@ window.NFGeolocation = (function() {
             if (window.showNotification) {
                 showNotification('تم التقاط الموقع الجغرافي بنجاح', 'success');
             }
+
+            // Log activity
+            if (window.NFActivity) {
+                window.NFActivity.log('STATUS_CHANGE', { action: 'تقاط الموقع الجغرافي', lat: position.latitude, lng: position.longitude });
+            }
             
             return position;
         } catch (error) {

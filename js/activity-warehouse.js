@@ -31,18 +31,19 @@ window.NFActivity = (function() {
     async function logActivity(type, details = {}) {
         console.log('Attempting to log activity:', type, details);
         
-        // Try Supabase first - use global getSupabaseClientAsync if available
-        let client = window.supabaseClient;
-        if (!client && typeof window.getSupabaseClientAsync === 'function') {
-            try {
-                client = await window.getSupabaseClientAsync();
-            } catch (e) {
-                console.warn('Could not get Supabase client:', e);
-            }
+        // Ensure we have a type
+        if (!type) {
+            console.error('Activity type is required');
+            return;
         }
+
+        // Try Supabase first
+        let client = window.supabaseClient;
         
-        if (client && (window.currentUser || window.supabaseClient?.auth?.session?.()?.user)) {
-            const user = window.currentUser || window.supabaseClient.auth.session()?.user;
+        // Check for authenticated user
+        const user = window.currentUser || (client && client.auth && typeof client.auth.user === 'function' ? client.auth.user() : null);
+        
+        if (client && user) {
             try {
                 const activity = {
                     activity_type: type,
@@ -57,9 +58,8 @@ window.NFActivity = (function() {
                 
                 if (error) {
                     console.error('Supabase logging error:', error);
-                    // Check if table doesn't exist - silently fail
                     if (error.code === '42P01' || error.message?.includes('does not exist')) {
-                        console.warn('Activity logs table does not exist - skipping log');
+                        console.warn('Activity logs table does not exist');
                         return;
                     }
                     throw error;
@@ -176,7 +176,7 @@ window.NFActivity = (function() {
             {
                 id: 'demo-1',
                 type: 'LOGIN',
-                details: { message: 'تسجيل دخول ناجح' },
+                details: { message: 'تسجيل دخول ناجح للمستخدم' },
                 timestamp: new Date(now - 5 * 60000).toISOString()
             },
             {
@@ -187,8 +187,14 @@ window.NFActivity = (function() {
             },
             {
                 id: 'demo-3',
+                type: 'VEHICLE_UPDATED',
+                details: { vehicleName: 'نيسان باترول 2022', action: 'تعديل بيانات المحرك' },
+                timestamp: new Date(now - 45 * 60000).toISOString()
+            },
+            {
+                id: 'demo-4',
                 type: 'EXPORT_EXCEL',
-                details: { count: 5, message: 'تم تصدير 5 مركبات' },
+                details: { count: 5, message: 'تم تصدير 5 مركبات بنجاح' },
                 timestamp: new Date(now - 60 * 60000).toISOString()
             }
         ];
