@@ -29,6 +29,8 @@ window.NFActivity = (function() {
     
     // Log activity - Support both Firebase and Supabase
     async function logActivity(type, details = {}) {
+        console.log('Attempting to log activity:', type, details);
+        
         // Try Supabase first - use global getSupabaseClientAsync if available
         let client = window.supabaseClient;
         if (!client && typeof window.getSupabaseClientAsync === 'function') {
@@ -39,12 +41,13 @@ window.NFActivity = (function() {
             }
         }
         
-        if (client && window.currentUser) {
+        if (client && (window.currentUser || window.supabaseClient?.auth?.session?.()?.user)) {
+            const user = window.currentUser || window.supabaseClient.auth.session()?.user;
             try {
                 const activity = {
                     activity_type: type,
                     details: details,
-                    user_id: window.currentUser.id,
+                    user_id: user.id,
                     created_at: new Date().toISOString()
                 };
                 
@@ -53,6 +56,7 @@ window.NFActivity = (function() {
                     .insert(activity);
                 
                 if (error) {
+                    console.error('Supabase logging error:', error);
                     // Check if table doesn't exist - silently fail
                     if (error.code === '42P01' || error.message?.includes('does not exist')) {
                         console.warn('Activity logs table does not exist - skipping log');
@@ -61,11 +65,10 @@ window.NFActivity = (function() {
                     throw error;
                 }
                     
-                console.log('Activity logged (Supabase):', type);
+                console.log('Activity logged successfully (Supabase):', type);
                 return;
             } catch (error) {
                 console.warn('Error logging activity to Supabase:', error.message || error);
-                // Don't throw - activity logging is not critical
             }
         }
         
@@ -311,13 +314,23 @@ window.NFActivity = (function() {
     
     // Refresh activities
     async function refreshActivities() {
+        console.log('Refreshing activities...');
         const container = document.getElementById('activitiesSection');
-        if (!container) return;
+        if (!container) {
+            console.error('Activities container #activitiesSection not found');
+            return;
+        }
         
         container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
         
-        const activities = await getActivities();
-        container.innerHTML = createActivitiesPageHTML(activities);
+        try {
+            const activities = await getActivities();
+            console.log('Activities fetched:', activities);
+            container.innerHTML = createActivitiesPageHTML(activities);
+        } catch (error) {
+            console.error('Failed to refresh activities:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل النشاطات</div>';
+        }
     }
     
     console.log('📋 NFActivity initialized');
