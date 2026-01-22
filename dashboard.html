@@ -1131,6 +1131,24 @@
                 </div>
             </header>
 
+            <!-- Search and Filter Bar -->
+            <div class="search-filter-bar" style="padding: 0 30px; margin-top: 20px;">
+                <div class="search-wrapper" style="position: relative; display: flex; gap: 10px;">
+                    <div style="position: relative; flex: 1;">
+                        <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="advancedSearchInput" placeholder="ابحث برقم الشاصي (VIN)، رقم اللوحة، أو اسم العميل..." 
+                               style="width: 100%; padding: 12px 45px 12px 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-family: inherit;">
+                    </div>
+                    <select id="vehicleTypeFilter" style="padding: 12px 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-family: inherit; background: white; cursor: pointer;">
+                        <option value="all">جميع أنواع المركبات</option>
+                        <option value="sedan">سيدان</option>
+                        <option value="suv">دفع رباعي (SUV)</option>
+                        <option value="pickup">بيك أب</option>
+                        <option value="van">فان</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Filters Section (New Feature) -->
             <div id="nf-filters-container" style="padding: 20px 30px 0;"></div>
             
@@ -1147,7 +1165,10 @@
                     </button>
                 </div>
                 <div class="vehicles-grid" id="vehiclesGrid">
-                    <!-- Vehicles will be loaded here -->
+                    <!-- Skeleton Loaders for better UX -->
+                    <div class="vehicle-card skeleton skeleton-card"></div>
+                    <div class="vehicle-card skeleton skeleton-card"></div>
+                    <div class="vehicle-card skeleton skeleton-card"></div>
                 </div>
             </section>
             
@@ -3451,6 +3472,69 @@
             if (window.NFStats && vehicles.length >= 0) {
                 NFStats.update('nf-enhanced-stats', vehicles);
             }
+        };
+    </script>
+    <!-- Activity & Warehouse Scripts -->
+    <script src="js/activity-warehouse.js"></script>
+    
+    <script>
+        // Override showSection to handle activity log loading
+        const originalShowSection = window.showSection;
+        window.showSection = function(sectionId) {
+            // Fix for different section IDs in HTML vs script
+            let targetId = sectionId;
+            if (sectionId === 'activity') targetId = 'activities';
+            
+            console.log('Showing section:', targetId);
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = 'none';
+            });
+            
+            // Show target section
+            const section = document.getElementById(targetId + 'Section');
+            if (section) {
+                section.classList.add('active');
+                section.style.display = 'block';
+                
+                // Trigger refresh if needed
+                if (targetId === 'activities' && window.NFActivity) {
+                    console.log('Refreshing activities section');
+                    window.NFActivity.refreshActivities();
+                } else if (targetId === 'warehouse' && window.NFWarehouse) {
+                    console.log('Refreshing warehouse section');
+                    if (typeof window.NFWarehouse.refreshWarehouses === 'function') {
+                        window.NFWarehouse.refreshWarehouses();
+                    }
+                } else if (targetId === 'evaluators' && window.NFEvaluators) {
+                    console.log('Refreshing evaluators section');
+                    if (typeof window.NFEvaluators.refreshEvaluators === 'function') {
+                        window.NFEvaluators.refreshEvaluators();
+                    }
+                }
+            }
+            
+            // Update menu active state
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('onclick')?.includes(`'${sectionId}'`)) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Update title
+            const titleMap = {
+                'dashboard': 'لوحة التحكم',
+                'vehicles': 'إدارة المركبات',
+                'activities': 'سجل النشاطات',
+                'activity': 'سجل النشاطات',
+                'warehouse': 'إدارة المستودعات',
+                'evaluators': 'القائمين بالتقييم'
+            };
+            const titleEl = document.getElementById('sectionTitle');
+            if (titleEl) titleEl.textContent = titleMap[targetId] || titleMap[sectionId] || 'النظام';
         };
     </script>
 </body>

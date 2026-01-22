@@ -29,22 +29,26 @@ window.NFActivity = (function() {
     
     // Log activity - Support both Firebase and Supabase
     async function logActivity(type, details = {}) {
-        // Try Supabase first - use global getSupabaseClientAsync if available
-        let client = window.supabaseClient;
-        if (!client && typeof window.getSupabaseClientAsync === 'function') {
-            try {
-                client = await window.getSupabaseClientAsync();
-            } catch (e) {
-                console.warn('Could not get Supabase client:', e);
-            }
-        }
+        console.log('Attempting to log activity:', type, details);
         
-        if (client && window.currentUser) {
+        // Ensure we have a type
+        if (!type) {
+            console.error('Activity type is required');
+            return;
+        }
+
+        // Try Supabase first
+        let client = window.supabaseClient;
+        
+        // Check for authenticated user
+        const user = window.currentUser || (client && client.auth && typeof client.auth.user === 'function' ? client.auth.user() : null);
+        
+        if (client && user) {
             try {
                 const activity = {
                     activity_type: type,
                     details: details,
-                    user_id: window.currentUser.id,
+                    user_id: user.id,
                     created_at: new Date().toISOString()
                 };
                 
@@ -53,19 +57,18 @@ window.NFActivity = (function() {
                     .insert(activity);
                 
                 if (error) {
-                    // Check if table doesn't exist - silently fail
+                    console.error('Supabase logging error:', error);
                     if (error.code === '42P01' || error.message?.includes('does not exist')) {
-                        console.warn('Activity logs table does not exist - skipping log');
+                        console.warn('Activity logs table does not exist');
                         return;
                     }
                     throw error;
                 }
                     
-                console.log('Activity logged (Supabase):', type);
+                console.log('Activity logged successfully (Supabase):', type);
                 return;
             } catch (error) {
                 console.warn('Error logging activity to Supabase:', error.message || error);
-                // Don't throw - activity logging is not critical
             }
         }
         
@@ -173,7 +176,7 @@ window.NFActivity = (function() {
             {
                 id: 'demo-1',
                 type: 'LOGIN',
-                details: { message: 'تسجيل دخول ناجح' },
+                details: { message: 'تسجيل دخول ناجح للمستخدم' },
                 timestamp: new Date(now - 5 * 60000).toISOString()
             },
             {
@@ -184,8 +187,14 @@ window.NFActivity = (function() {
             },
             {
                 id: 'demo-3',
+                type: 'VEHICLE_UPDATED',
+                details: { vehicleName: 'نيسان باترول 2022', action: 'تعديل بيانات المحرك' },
+                timestamp: new Date(now - 45 * 60000).toISOString()
+            },
+            {
+                id: 'demo-4',
                 type: 'EXPORT_EXCEL',
-                details: { count: 5, message: 'تم تصدير 5 مركبات' },
+                details: { count: 5, message: 'تم تصدير 5 مركبات بنجاح' },
                 timestamp: new Date(now - 60 * 60000).toISOString()
             }
         ];
@@ -311,13 +320,42 @@ window.NFActivity = (function() {
     
     // Refresh activities
     async function refreshActivities() {
+        console.log('Refreshing activities...');
         const container = document.getElementById('activitiesSection');
+        if (!container) {
+            console.error('Activities container #activitiesSection not found');
+            return;
+        }
+        
+        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        
+        try {
+            const activities = await getActivities();
+            console.log('Activities fetched:', activities);
+            container.innerHTML = createActivitiesPageHTML(activities);
+        } catch (error) {
+            console.error('Failed to refresh activities:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل النشاطات</div>';
+        }
+    }
+    
+    // Refresh warehouses
+    async function refreshWarehouses() {
+        const container = document.getElementById('warehouseSection');
         if (!container) return;
         
         container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
         
-        const activities = await getActivities();
-        container.innerHTML = createActivitiesPageHTML(activities);
+        try {
+            const warehouses = await getWarehouses();
+            // We need vehicle stats for the warehouse page
+            const stats = {}; 
+            // Mock stats if needed
+            container.innerHTML = createWarehousePageHTML(warehouses, stats);
+        } catch (error) {
+            console.error('Error refreshing warehouses:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل المستودعات</div>';
+        }
     }
     
     console.log('📋 NFActivity initialized');
@@ -329,7 +367,8 @@ window.NFActivity = (function() {
         format: formatActivity,
         createPageHTML: createActivitiesPageHTML,
         filterActivities,
-        refreshActivities
+        refreshActivities,
+        refreshWarehouses
     };
 })();
 

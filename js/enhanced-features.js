@@ -167,6 +167,11 @@ window.NFGeolocation = (function() {
             if (window.showNotification) {
                 showNotification('تم التقاط الموقع الجغرافي بنجاح', 'success');
             }
+
+            // Log activity
+            if (window.NFActivity) {
+                window.NFActivity.log('STATUS_CHANGE', { action: 'تقاط الموقع الجغرافي', lat: position.latitude, lng: position.longitude });
+            }
             
             return position;
         } catch (error) {
@@ -494,6 +499,49 @@ window.NFEvaluators = (function() {
         }
     }
     
+    // Refresh evaluators list in UI
+    async function refreshEvaluators() {
+        const container = document.getElementById('evaluatorsSection');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        
+        try {
+            const evaluators = await getEvaluators();
+            container.innerHTML = `
+                <div class="nf-evaluators-page">
+                    <div class="nf-evaluators-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2><i class="fas fa-user-tie"></i> القائمين بالتقييم</h2>
+                        <button class="btn btn-primary" onclick="NFEvaluators.showAddEvaluatorModal()">
+                            <i class="fas fa-plus"></i> إضافة قائم جديد
+                        </button>
+                    </div>
+                    <div class="nf-evaluators-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                        ${evaluators.map(e => `
+                            <div class="nf-evaluator-card" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                                    <div style="width: 50px; height: 50px; background: #eef2ff; color: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">
+                                        ${e.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h3 style="margin: 0; font-size: 1.1rem;">${e.name}</h3>
+                                        <p style="margin: 0; font-size: 0.85rem; color: #64748b;">${e.employeeId}</p>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.9rem; color: #64748b;">
+                                    <p><i class="fas fa-phone"></i> ${e.phone || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error refreshing evaluators:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل القائمين بالتقييم</div>';
+        }
+    }
+
     console.log('👤 NFEvaluators initialized');
     
     return {
@@ -503,7 +551,8 @@ window.NFEvaluators = (function() {
         createEvaluatorSelector,
         populateEvaluatorSelector,
         showAddEvaluatorModal,
-        saveEvaluator
+        saveEvaluator,
+        refreshEvaluators
     };
 })();
 
