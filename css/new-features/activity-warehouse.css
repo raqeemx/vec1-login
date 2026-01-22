@@ -360,11 +360,106 @@
     display: block;
 }
 
+/* ===== Evaluator Cards ===== */
+.evaluator-card {
+    position: relative;
+    padding: 25px 20px;
+    animation: fadeInUp 0.5s ease forwards;
+    opacity: 0;
+}
+
+.evaluator-card:hover {
+    transform: translateY(-8px);
+}
+
+.evaluator-card.top-evaluator {
+    border: 2px solid #f59e0b;
+    box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);
+}
+
+.evaluator-badge {
+    position: absolute;
+    top: -10px;
+    right: -10px;
+    background: #f59e0b;
+    color: white;
+    width: 30px;
+    height: 30px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+.evaluator-avatar {
+    width: 80px;
+    height: 80px;
+    background: linear-gradient(135deg, var(--primary), var(--secondary));
+    border-radius: 50%;
+    margin: 0 auto 15px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 2rem;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+    transition: transform 0.3s;
+}
+
+.evaluator-card:hover .evaluator-avatar {
+    transform: scale(1.1);
+}
+
+.evaluator-stats-box {
+    background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+    padding: 20px;
+    border-radius: 12px;
+    margin: 15px 0;
+}
+
+.evaluator-progress-bar {
+    background: #e2e8f0;
+    height: 8px;
+    border-radius: 4px;
+    overflow: hidden;
+    margin: 10px 0;
+}
+
+.evaluator-progress-fill {
+    background: var(--primary);
+    height: 100%;
+    transition: width 0.5s ease;
+}
+
+.evaluator-progress-fill.top {
+    background: #f59e0b;
+}
+
+/* Animation for cards */
+@keyframes fadeInUp {
+    from {
+        opacity: 0;
+        transform: translateY(20px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
 /* ===== Dark Mode Support ===== */
 html.dark .nf-activity-item,
 html.dark .nf-warehouse-card,
 html.dark .nf-wh-stat-card {
     background: #1e293b;
+}
+
+html.dark .evaluator-stats-box {
+    background: linear-gradient(135deg, #1e293b, #0f172a);
+}
+
+html.dark .evaluator-progress-bar {
+    background: #334155;
 }
 
 html.dark .nf-activity-title,
