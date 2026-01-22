@@ -253,16 +253,23 @@ window.NFValidator = (function() {
                 if (input.value.length > 0 && this.options.showSuccessState) {
                     input.classList.add('nf-input-valid');
                     formGroup.classList.add('nf-has-success');
+                    input.style.borderColor = '#10b981';
                 }
                 if (errorEl) {
                     errorEl.classList.remove('nf-show');
+                    errorEl.style.display = 'none';
                 }
             } else {
                 input.classList.add('nf-input-invalid');
                 formGroup.classList.add('nf-has-error');
+                input.style.borderColor = '#ef4444';
                 if (errorEl) {
                     errorEl.querySelector('span').textContent = errorMessage;
                     errorEl.classList.add('nf-show');
+                    errorEl.style.display = 'block';
+                    errorEl.style.color = '#ef4444';
+                    errorEl.style.fontSize = '0.8rem';
+                    errorEl.style.marginTop = '5px';
                 }
             }
         }
