@@ -19,7 +19,6 @@
     <link rel="stylesheet" href="css/new-features/filters.css">
     <link rel="stylesheet" href="css/new-features/enhanced-stats.css">
     <link rel="stylesheet" href="css/new-features/activity-warehouse.css">
-    <link rel="stylesheet" href="css/new-features/mobile-responsive.css">
     
     <!-- UX Animations -->
     <link rel="stylesheet" href="css/animations.css">
@@ -292,31 +291,6 @@
         .btn-outline:hover {
             border-color: var(--primary);
             color: var(--primary);
-        }
-
-        /* Content Sections - Show only active section */
-        .content-section {
-            display: none !important;
-            opacity: 0;
-            transform: translateY(10px);
-        }
-        
-        .content-section.active {
-            display: block !important;
-            opacity: 1;
-            transform: translateY(0);
-            animation: sectionFadeIn 0.4s ease-out;
-        }
-        
-        @keyframes sectionFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(15px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         /* Vehicles Grid */
@@ -883,64 +857,14 @@
             justify-content: center;
         }
 
-        /* Sidebar close button */
-        .sidebar-close-btn {
-            display: none;
-            position: absolute;
-            top: 20px;
-            left: 20px;
-            width: 40px;
-            height: 40px;
-            background: rgba(255,255,255,0.2);
-            border: none;
-            border-radius: 10px;
-            color: white;
-            cursor: pointer;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.2rem;
-            z-index: 10;
-            transition: all 0.3s;
-        }
-        
-        .sidebar-close-btn:hover {
-            background: rgba(255,255,255,0.3);
-        }
-        
-        /* Sidebar Overlay */
-        .sidebar-overlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.5);
-            z-index: 999;
-            backdrop-filter: blur(2px);
-            -webkit-backdrop-filter: blur(2px);
-        }
-        
-        body.sidebar-open .sidebar-overlay {
-            display: block;
-        }
-
         /* Responsive */
         @media (max-width: 992px) {
             .sidebar {
                 transform: translateX(100%);
-                width: 85%;
-                max-width: 320px;
-                z-index: 1001;
             }
             
             .sidebar.show {
                 transform: translateX(0);
-            }
-            
-            .sidebar-close-btn {
-                display: flex;
-            }
-            
-            .sidebar-header {
-                padding-top: 70px;
             }
             
             .main-content {
@@ -1127,18 +1051,11 @@
     <button class="mobile-menu-toggle" id="mobileMenuToggle" onclick="toggleSidebar()">
         <i class="fas fa-bars"></i>
     </button>
-    
-    <!-- Sidebar Overlay for Mobile -->
-    <div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
 
     <!-- Main Content (Hidden until authenticated) -->
     <div id="mainContent" style="display: none;">
         <!-- Sidebar -->
         <aside class="sidebar" id="sidebar">
-            <!-- Close button for mobile -->
-            <button class="sidebar-close-btn" onclick="closeSidebar()">
-                <i class="fas fa-times"></i>
-            </button>
             <div class="sidebar-header">
                 <div class="sidebar-logo">
                     <i class="fas fa-car"></i>
@@ -1186,13 +1103,9 @@
                     <span>تصدير JSON</span>
                 </div>
 
-                <div class="menu-item" onclick="showImportOptions()">
+                <div class="menu-item" onclick="document.getElementById('importFile').click()">
                     <i class="fas fa-file-import"></i>
                     <span>استيراد بيانات</span>
-                </div>
-                <div class="menu-item" onclick="document.getElementById('importExcelFile').click()">
-                    <i class="fas fa-file-excel" style="color: #10b981;"></i>
-                    <span>استيراد من Excel</span>
                 </div>
                 <div class="menu-item" onclick="handleLogout()">
                     <i class="fas fa-sign-out-alt"></i>
@@ -1218,6 +1131,24 @@
                 </div>
             </header>
 
+            <!-- Search and Filter Bar -->
+            <div class="search-filter-bar" style="padding: 0 30px; margin-top: 20px;">
+                <div class="search-wrapper" style="position: relative; display: flex; gap: 10px;">
+                    <div style="position: relative; flex: 1;">
+                        <i class="fas fa-search" style="position: absolute; right: 15px; top: 50%; transform: translateY(-50%); color: #94a3b8;"></i>
+                        <input type="text" id="advancedSearchInput" placeholder="ابحث برقم الشاصي (VIN)، رقم اللوحة، أو اسم العميل..." 
+                               style="width: 100%; padding: 12px 45px 12px 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-family: inherit;">
+                    </div>
+                    <select id="vehicleTypeFilter" style="padding: 12px 15px; border-radius: 12px; border: 2px solid #e2e8f0; font-family: inherit; background: white; cursor: pointer;">
+                        <option value="all">جميع أنواع المركبات</option>
+                        <option value="sedan">سيدان</option>
+                        <option value="suv">دفع رباعي (SUV)</option>
+                        <option value="pickup">بيك أب</option>
+                        <option value="van">فان</option>
+                    </select>
+                </div>
+            </div>
+
             <!-- Filters Section (New Feature) -->
             <div id="nf-filters-container" style="padding: 20px 30px 0;"></div>
             
@@ -1234,7 +1165,10 @@
                     </button>
                 </div>
                 <div class="vehicles-grid" id="vehiclesGrid">
-                    <!-- Vehicles will be loaded here -->
+                    <!-- Skeleton Loaders for better UX -->
+                    <div class="vehicle-card skeleton skeleton-card"></div>
+                    <div class="vehicle-card skeleton skeleton-card"></div>
+                    <div class="vehicle-card skeleton skeleton-card"></div>
                 </div>
             </section>
             
@@ -1261,9 +1195,8 @@
         </main>
     </div>
 
-    <!-- Hidden file inputs for import -->
+    <!-- Hidden file input for import -->
     <input type="file" id="importFile" accept=".json" style="display: none;" onchange="handleImport(event)">
-    <input type="file" id="importExcelFile" accept=".xlsx,.xls" style="display: none;" onchange="handleExcelImport(event)">
 
     <!-- Add/Edit Modal -->
     <div class="modal" id="vehicleModal">
@@ -1439,11 +1372,11 @@
                     </div>
                     
                     <div class="form-group full-width">
-                        <label><i class="fas fa-camera" style="margin-left: 5px;"></i>صور المركبة (حتى 3 صور)</label>
+                        <label><i class="fas fa-camera" style="margin-left: 5px;"></i>صور المركبة (حتى 10 صور)</label>
                         <div class="image-upload-area" onclick="document.getElementById('vehicleImages').click()">
                             <i class="fas fa-cloud-upload-alt"></i>
                             <p>اضغط لاختيار الصور أو اسحب الصور هنا</p>
-                            <p style="font-size: 0.8rem; color: #94a3b8;">الحد الأقصى: 5MB لكل صورة</p>
+                            <p style="font-size: 0.8rem; color: #94a3b8;">الحد الأقصى: 10MB لكل صورة</p>
                         </div>
                         <input type="file" id="vehicleImages" accept="image/*" multiple style="display: none;" onchange="handleImageUpload(event)">
                         <div class="image-preview-container" id="imagePreviewContainer"></div>
@@ -1540,7 +1473,9 @@
                 supabaseClient = await getSupabaseClientAsync();
                 
                 if (supabaseClient) {
-                    console.log('✅ Supabase client initialized in dashboard');
+                    // Make available globally for other modules (NFWarehouse, NFEvaluators, etc.)
+                    window.supabaseClient = supabaseClient;
+                    console.log('✅ Supabase client initialized in dashboard (global)');
                     return true;
                 } else {
                     console.error('❌ Supabase client initialization failed');
@@ -1598,6 +1533,8 @@
                 if (session && session.user) {
                     console.log('User authenticated:', session.user.email);
                     currentUser = session.user;
+                    // Make user available globally for other modules
+                    window.currentUser = currentUser;
                     loader.style.display = 'none';
                     main.style.display = 'block';
                     
@@ -1617,6 +1554,7 @@
                         window.location.replace('index.html');
                     } else if (event === 'SIGNED_IN' && session) {
                         currentUser = session.user;
+                        window.currentUser = currentUser;
                         updateUserUI(session.user);
                     }
                 });
@@ -1658,23 +1596,7 @@
         // ========================================
         function toggleSidebar() {
             const sidebar = document.getElementById('sidebar');
-            const overlay = document.getElementById('sidebarOverlay');
             sidebar.classList.toggle('show');
-            document.body.classList.toggle('sidebar-open');
-            
-            // Prevent body scroll when sidebar is open
-            if (sidebar.classList.contains('show')) {
-                document.body.style.overflow = 'hidden';
-            } else {
-                document.body.style.overflow = '';
-            }
-        }
-        
-        function closeSidebar() {
-            const sidebar = document.getElementById('sidebar');
-            sidebar.classList.remove('show');
-            document.body.classList.remove('sidebar-open');
-            document.body.style.overflow = '';
         }
 
         // ========================================
@@ -1772,6 +1694,8 @@
                 if (error) throw error;
                 
                 vehicles = data || [];
+                // Make vehicles available globally for other modules
+                window.vehicles = vehicles;
                 
                 renderVehicles();
                 updateStats();
@@ -1979,16 +1903,15 @@
             const vehicle = vehicles.find(v => v.id === id);
             if (!vehicle) return;
             
-            currentVehicleId = id;
-            
             // Log activity
             if (window.NFActivity) {
                 NFActivity.log('VEHICLE_VIEWED', {
                     vehicleName: `${vehicle.make || ''} ${vehicle.model || ''} ${vehicle.year || ''}`.trim(),
-                    contractNo: vehicle.contractNo,
-                    vehicleId: id
+                    contractNo: vehicle.contractNo
                 });
             }
+            
+            currentVehicleId = id;
             
             const body = document.getElementById('viewModalBody');
             body.innerHTML = `
@@ -2157,29 +2080,75 @@
         // ========================================
         // Image Handling
         // ========================================
+        // Image Upload Configuration
+        const IMAGE_CONFIG = {
+            maxImages: 10,           // Maximum 10 images
+            maxSizePerImage: 10 * 1024 * 1024,  // 10MB per image
+            allowedTypes: ['image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp'],
+            maxTotalSize: 50 * 1024 * 1024  // 50MB total
+        };
+        
         function handleImageUpload(event) {
             const files = Array.from(event.target.files);
-            const maxSize = 5 * 1024 * 1024; // 5MB
-            const maxImages = 3;
             
-            if (pendingImages.length + files.length > maxImages) {
-                showNotification(`يمكنك رفع ${maxImages} صور كحد أقصى`, 'warning');
+            // Check total images count
+            const currentCount = pendingImages.filter(img => img && (img.startsWith('data:') || img.startsWith('http'))).length;
+            const newCount = currentCount + files.length;
+            
+            if (newCount > IMAGE_CONFIG.maxImages) {
+                showNotification(`يمكنك رفع ${IMAGE_CONFIG.maxImages} صور كحد أقصى. لديك حالياً ${currentCount} صورة.`, 'warning');
+                event.target.value = '';
                 return;
             }
             
+            // Validate each file
+            const validFiles = [];
+            const errors = [];
+            
             files.forEach(file => {
-                if (file.size > maxSize) {
-                    showNotification(`الصورة ${file.name} أكبر من 5MB`, 'warning');
+                // Check file type
+                if (!IMAGE_CONFIG.allowedTypes.includes(file.type)) {
+                    errors.push(`${file.name}: نوع الملف غير مدعوم (مسموح: JPG, PNG, GIF, WEBP)`);
                     return;
                 }
                 
-                const reader = new FileReader();
-                reader.onload = (e) => {
-                    pendingImages.push(e.target.result);
-                    renderImagePreviews();
-                };
-                reader.readAsDataURL(file);
+                // Check file size
+                if (file.size > IMAGE_CONFIG.maxSizePerImage) {
+                    const sizeMB = (file.size / (1024 * 1024)).toFixed(1);
+                    errors.push(`${file.name}: حجم الصورة (${sizeMB}MB) أكبر من الحد الأقصى (10MB)`);
+                    return;
+                }
+                
+                validFiles.push(file);
             });
+            
+            // Show errors if any
+            if (errors.length > 0) {
+                errors.forEach(err => showNotification(err, 'warning'));
+            }
+            
+            // Process valid files
+            if (validFiles.length > 0) {
+                let processedCount = 0;
+                
+                validFiles.forEach(file => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        pendingImages.push(e.target.result);
+                        processedCount++;
+                        
+                        // Render after all files are processed
+                        if (processedCount === validFiles.length) {
+                            renderImagePreviews();
+                            showNotification(`تم إضافة ${validFiles.length} صورة`, 'success');
+                        }
+                    };
+                    reader.onerror = () => {
+                        showNotification(`خطأ في قراءة الملف: ${file.name}`, 'error');
+                    };
+                    reader.readAsDataURL(file);
+                });
+            }
             
             event.target.value = '';
         }
@@ -2761,10 +2730,23 @@
                 const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
                 XLSX.writeFile(wb, `Vehicles_Export_${date}_${time}.xlsx`);
                 
+                // Log activity
+                if (window.NFActivity) {
+                    NFActivity.log('EXPORT_EXCEL', {
+                        count: vehicles.length,
+                        totalImages: totalImagesCount,
+                        message: `تم تصدير ${vehicles.length} مركبة`
+                    });
+                }
+                
                 hideLoading();
                 showNotification(`✅ تم تصدير ${vehicles.length} مركبة و ${totalImagesCount} صورة بنجاح!`, 'success');
             } catch (error) {
                 console.error('Export Error:', error);
+                // Log error
+                if (window.NFActivity) {
+                    NFActivity.log('ERROR', { error: error.message, action: 'EXPORT_EXCEL' });
+                }
                 hideLoading();
                 showNotification('❌ حدث خطأ أثناء التصدير: ' + (error.message || 'خطأ غير معروف'), 'error');
             }
@@ -2795,7 +2777,10 @@
             
             // Log activity
             if (window.NFActivity) {
-                NFActivity.log('EXPORT_JSON', { count: vehicles.length });
+                NFActivity.log('EXPORT_JSON', {
+                    count: vehicles.length,
+                    message: `تم تصدير ${vehicles.length} مركبة كـ JSON`
+                });
             }
             
             showNotification(`تم تصدير ${vehicles.length} مركبة كـ JSON`, 'success');
@@ -2841,487 +2826,245 @@
                 return;
             }
             
-            showLoading(`جاري استيراد ${vehiclesList.length} مركبة...`);
+            showLoading(`جاري تحليل ${vehiclesList.length} مركبة...`);
             
             try {
-                // Prepare vehicles for insert - clean numeric values
-                const vehiclesToInsert = vehiclesList.map(vehicle => {
-                    // Remove any existing id to let Supabase generate new ones
+                // Prepare vehicles for comparison
+                const preparedVehicles = vehiclesList.map(vehicle => {
                     const { id, ...vehicleData } = vehicle;
                     
                     return {
                         ...vehicleData,
-                        // Clean numeric fields
                         year: parseIntValue(vehicle.year),
                         odometer: parseIntValue(vehicle.odometer),
                         marketValue: parseNumericValue(vehicle.marketValue),
-                        // Clean string fields
-                        contractNo: cleanValue(vehicle.contractNo),
-                        customerName: cleanValue(vehicle.customerName),
-                        make: cleanValue(vehicle.make),
-                        model: cleanValue(vehicle.model),
-                        vin: cleanValue(vehicle.vin),
-                        plateNo: cleanValue(vehicle.plateNo),
-                        color: cleanValue(vehicle.color),
-                        fuelType: cleanValue(vehicle.fuelType),
+                        contractNo: cleanValue(vehicle.contractNo)?.trim(),
+                        customerName: cleanValue(vehicle.customerName)?.trim(),
+                        make: cleanValue(vehicle.make)?.trim(),
+                        model: cleanValue(vehicle.model)?.trim(),
+                        vin: cleanValue(vehicle.vin)?.trim()?.toUpperCase(),
+                        plateNo: cleanValue(vehicle.plateNo)?.trim(),
+                        color: cleanValue(vehicle.color)?.trim(),
+                        fuelType: cleanValue(vehicle.fuelType)?.trim(),
                         overallRating: cleanValue(vehicle.overallRating) || 'good',
-                        recoveryDate: cleanValue(vehicle.recoveryDate),
-                        recoveryLocation: cleanValue(vehicle.recoveryLocation),
-                        recommendation: cleanValue(vehicle.recommendation),
-                        operationStatus: cleanValue(vehicle.operationStatus),
-                        warehouse: cleanValue(vehicle.warehouse),
-                        warehouseName: cleanValue(vehicle.warehouseName),
-                        evaluatorId: cleanValue(vehicle.evaluatorId),
-                        evaluatorName: cleanValue(vehicle.evaluatorName),
-                        evaluatorEmployeeId: cleanValue(vehicle.evaluatorEmployeeId),
-                        gpsLatitude: cleanValue(vehicle.gpsLatitude),
-                        gpsLongitude: cleanValue(vehicle.gpsLongitude),
-                        gpsMapUrl: cleanValue(vehicle.gpsMapUrl),
-                        notes: cleanValue(vehicle.notes),
-                        images: Array.isArray(vehicle.images) ? vehicle.images : [],
-                        // Set user and timestamps
-                        user_id: currentUser.id,
-                        created_at: new Date().toISOString(),
-                        updated_at: new Date().toISOString(),
-                        deleted: false
+                        recoveryDate: cleanValue(vehicle.recoveryDate)?.trim(),
+                        recoveryLocation: cleanValue(vehicle.recoveryLocation)?.trim(),
+                        recommendation: cleanValue(vehicle.recommendation)?.trim(),
+                        operationStatus: cleanValue(vehicle.operationStatus)?.trim(),
+                        warehouse: cleanValue(vehicle.warehouse)?.trim(),
+                        warehouseName: cleanValue(vehicle.warehouseName)?.trim(),
+                        evaluatorId: cleanValue(vehicle.evaluatorId)?.trim(),
+                        evaluatorName: cleanValue(vehicle.evaluatorName)?.trim(),
+                        evaluatorEmployeeId: cleanValue(vehicle.evaluatorEmployeeId)?.trim(),
+                        gpsLatitude: cleanValue(vehicle.gpsLatitude)?.trim(),
+                        gpsLongitude: cleanValue(vehicle.gpsLongitude)?.trim(),
+                        gpsMapUrl: cleanValue(vehicle.gpsMapUrl)?.trim(),
+                        notes: cleanValue(vehicle.notes)?.trim(),
+                        images: Array.isArray(vehicle.images) ? vehicle.images : []
                     };
                 });
                 
+                // Check for duplicates with existing vehicles
+                const duplicates = [];
+                const toImport = [];
+                
+                // Key fields for matching (normalized)
+                const getMatchKey = (v) => {
+                    // Primary: VIN (most unique identifier)
+                    // Secondary: ContractNo + Make + Model + Year
+                    // Tertiary: PlateNo + Make + Model
+                    const vin = (v.vin || '').toUpperCase().trim();
+                    const contractNo = (v.contractNo || '').trim().toLowerCase();
+                    const make = (v.make || '').trim().toLowerCase();
+                    const model = (v.model || '').trim().toLowerCase();
+                    const year = v.year || '';
+                    const plateNo = (v.plateNo || '').trim().toLowerCase();
+                    
+                    // Return multiple keys for matching
+                    return {
+                        vin: vin,
+                        contractMakeModelYear: `${contractNo}|${make}|${model}|${year}`,
+                        plateMakeModel: `${plateNo}|${make}|${model}`
+                    };
+                };
+                
+                // Create lookup maps from existing vehicles
+                const existingByVin = new Map();
+                const existingByContract = new Map();
+                const existingByPlate = new Map();
+                
+                vehicles.forEach(v => {
+                    const keys = getMatchKey(v);
+                    if (keys.vin && keys.vin.length === 17) {
+                        existingByVin.set(keys.vin, v);
+                    }
+                    if (keys.contractMakeModelYear && keys.contractMakeModelYear !== '|||') {
+                        existingByContract.set(keys.contractMakeModelYear, v);
+                    }
+                    if (keys.plateMakeModel && keys.plateMakeModel !== '||') {
+                        existingByPlate.set(keys.plateMakeModel, v);
+                    }
+                });
+                
+                // Check each vehicle
+                preparedVehicles.forEach((vehicle, index) => {
+                    const keys = getMatchKey(vehicle);
+                    let isDuplicate = false;
+                    let matchReason = '';
+                    let matchedWith = null;
+                    
+                    // Check by VIN (highest priority)
+                    if (keys.vin && keys.vin.length === 17 && existingByVin.has(keys.vin)) {
+                        isDuplicate = true;
+                        matchReason = 'VIN متطابق';
+                        matchedWith = existingByVin.get(keys.vin);
+                    }
+                    // Check by Contract + Make + Model + Year
+                    else if (keys.contractMakeModelYear !== '|||' && existingByContract.has(keys.contractMakeModelYear)) {
+                        isDuplicate = true;
+                        matchReason = 'رقم العقد + الصانع + الموديل + السنة متطابق';
+                        matchedWith = existingByContract.get(keys.contractMakeModelYear);
+                    }
+                    // Check by Plate + Make + Model
+                    else if (keys.plateMakeModel !== '||' && existingByPlate.has(keys.plateMakeModel)) {
+                        isDuplicate = true;
+                        matchReason = 'رقم اللوحة + الصانع + الموديل متطابق';
+                        matchedWith = existingByPlate.get(keys.plateMakeModel);
+                    }
+                    
+                    if (isDuplicate) {
+                        duplicates.push({
+                            index: index + 1,
+                            vehicle: vehicle,
+                            reason: matchReason,
+                            identifier: vehicle.vin || vehicle.contractNo || vehicle.plateNo || `مركبة رقم ${index + 1}`,
+                            matchedWith: matchedWith
+                        });
+                    } else {
+                        toImport.push({
+                            ...vehicle,
+                            user_id: currentUser.id,
+                            created_at: new Date().toISOString(),
+                            updated_at: new Date().toISOString(),
+                            deleted: false
+                        });
+                    }
+                });
+                
+                // If all are duplicates
+                if (toImport.length === 0) {
+                    hideLoading();
+                    showImportReport(0, duplicates.length, duplicates);
+                    return;
+                }
+                
+                // Import non-duplicate vehicles
+                showLoading(`جاري استيراد ${toImport.length} مركبة...`);
+                
                 const { error } = await supabaseClient
                     .from('vehicles')
-                    .insert(vehiclesToInsert);
+                    .insert(toImport);
                 
                 if (error) throw error;
+                
+                // Log activity
+                if (window.NFActivity) {
+                    NFActivity.log('IMPORT_DATA', {
+                        count: toImport.length,
+                        skipped: duplicates.length,
+                        message: `تم استيراد ${toImport.length} مركبة (${duplicates.length} مستثناة)`
+                    });
+                }
                 
                 // Reload vehicles
                 await loadVehicles();
                 
                 hideLoading();
-                showNotification(`تم استيراد ${vehiclesList.length} مركبة بنجاح!`, 'success');
                 
-                // Log activity
-                if (window.NFActivity) {
-                    NFActivity.log('IMPORT_DATA', { count: vehiclesList.length, format: 'JSON' });
-                }
+                // Show import report
+                showImportReport(toImport.length, duplicates.length, duplicates);
+                
             } catch (error) {
                 console.error('Import Error:', error);
+                // Log error
+                if (window.NFActivity) {
+                    NFActivity.log('ERROR', { error: error.message, action: 'IMPORT_DATA' });
+                }
                 hideLoading();
                 showNotification('خطأ في الاستيراد: ' + error.message, 'error');
             }
         }
         
-        // ========================================
-        // Excel Import Function
-        // ========================================
-        function showImportOptions() {
+        // Show import report modal
+        function showImportReport(imported, skipped, duplicatesList) {
             const modalHTML = `
-                <div class="modal show" id="importOptionsModal" onclick="if(event.target===this)this.remove()">
-                    <div class="modal-content" style="max-width: 500px;">
+                <div class="modal-overlay show" id="importReportModal" style="z-index: 10000;">
+                    <div class="modal" style="max-width: 600px; max-height: 80vh; display: flex; flex-direction: column;">
                         <div class="modal-header">
-                            <h3><i class="fas fa-file-import" style="margin-left: 10px; color: var(--primary);"></i>استيراد البيانات</h3>
-                            <button class="btn-close" onclick="document.getElementById('importOptionsModal').remove()">&times;</button>
-                        </div>
-                        <div class="modal-body" style="text-align: center;">
-                            <p style="margin-bottom: 25px; color: #64748b;">اختر نوع الملف الذي تريد استيراده:</p>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div class="import-option-card" onclick="document.getElementById('importOptionsModal').remove(); document.getElementById('importExcelFile').click();" 
-                                     style="padding: 25px; border: 2px solid #10b981; border-radius: 16px; cursor: pointer; transition: all 0.3s; background: #f0fdf4;">
-                                    <i class="fas fa-file-excel" style="font-size: 3rem; color: #10b981; margin-bottom: 15px;"></i>
-                                    <h4 style="color: #065f46; margin-bottom: 5px;">ملف Excel</h4>
-                                    <p style="font-size: 0.85rem; color: #64748b;">.xlsx, .xls</p>
-                                </div>
-                                
-                                <div class="import-option-card" onclick="document.getElementById('importOptionsModal').remove(); document.getElementById('importFile').click();" 
-                                     style="padding: 25px; border: 2px solid #3b82f6; border-radius: 16px; cursor: pointer; transition: all 0.3s; background: #eff6ff;">
-                                    <i class="fas fa-file-code" style="font-size: 3rem; color: #3b82f6; margin-bottom: 15px;"></i>
-                                    <h4 style="color: #1e40af; margin-bottom: 5px;">ملف JSON</h4>
-                                    <p style="font-size: 0.85rem; color: #64748b;">.json</p>
-                                </div>
-                            </div>
-                            
-                            <div style="margin-top: 25px; padding: 15px; background: #fef3c7; border-radius: 12px; text-align: right;">
-                                <h5 style="color: #92400e; margin-bottom: 8px;"><i class="fas fa-info-circle"></i> تعليمات الاستيراد من Excel:</h5>
-                                <ul style="color: #92400e; font-size: 0.85rem; margin: 0; padding-right: 20px;">
-                                    <li>الصف الأول يجب أن يحتوي على عناوين الأعمدة</li>
-                                    <li>الأعمدة المدعومة: رقم العقد، اسم العميل، الصانع، الموديل، السنة، VIN، رقم اللوحة، عداد المسافات، اللون، نوع الوقود، القيمة السوقية، التقييم، التوصية، ملاحظات</li>
-                                    <li>لا يتم استيراد الصور من ملف Excel</li>
-                                </ul>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-outline" onclick="document.getElementById('importOptionsModal').remove()">إغلاق</button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            document.body.insertAdjacentHTML('beforeend', modalHTML);
-        }
-        
-        async function handleExcelImport(event) {
-            const file = event.target.files[0];
-            if (!file) return;
-            
-            // Check if XLSX library is loaded
-            if (typeof XLSX === 'undefined') {
-                showNotification('مكتبة Excel غير متاحة. يرجى تحديث الصفحة.', 'error');
-                event.target.value = '';
-                return;
-            }
-            
-            showLoading('جاري قراءة ملف Excel...');
-            
-            try {
-                const arrayBuffer = await file.arrayBuffer();
-                const workbook = XLSX.read(arrayBuffer, { type: 'array' });
-                
-                // Get the first sheet
-                const firstSheetName = workbook.SheetNames[0];
-                const worksheet = workbook.Sheets[firstSheetName];
-                
-                // Convert to JSON
-                const jsonData = XLSX.utils.sheet_to_json(worksheet, { defval: '' });
-                
-                if (!jsonData || jsonData.length === 0) {
-                    hideLoading();
-                    showNotification('الملف فارغ أو لا يحتوي على بيانات صالحة', 'warning');
-                    event.target.value = '';
-                    return;
-                }
-                
-                hideLoading();
-                
-                // Show preview and confirmation
-                showExcelImportPreview(jsonData, file.name);
-                
-            } catch (error) {
-                console.error('Excel Read Error:', error);
-                hideLoading();
-                showNotification('خطأ في قراءة ملف Excel: ' + error.message, 'error');
-            }
-            
-            event.target.value = '';
-        }
-        
-        function showExcelImportPreview(data, filename) {
-            // Map common column names (Arabic and English)
-            const columnMappings = {
-                // Arabic column names
-                'رقم العقد': 'contractNo',
-                'رقم_العقد': 'contractNo',
-                'اسم العميل': 'customerName',
-                'اسم_العميل': 'customerName',
-                'العميل': 'customerName',
-                'الصانع': 'make',
-                'الشركة المصنعة': 'make',
-                'الموديل': 'model',
-                'النوع': 'model',
-                'السنة': 'year',
-                'سنة الصنع': 'year',
-                'رقم الشاصي': 'vin',
-                'VIN': 'vin',
-                'vin': 'vin',
-                'الشاصي': 'vin',
-                'رقم اللوحة': 'plateNo',
-                'رقم_اللوحة': 'plateNo',
-                'اللوحة': 'plateNo',
-                'عداد المسافات': 'odometer',
-                'المسافة': 'odometer',
-                'الكيلومترات': 'odometer',
-                'اللون': 'color',
-                'نوع الوقود': 'fuelType',
-                'الوقود': 'fuelType',
-                'القيمة السوقية': 'marketValue',
-                'القيمة': 'marketValue',
-                'السعر': 'marketValue',
-                'التقييم العام': 'overallRating',
-                'التقييم': 'overallRating',
-                'التوصية': 'recommendation',
-                'حالة التشغيل': 'operationStatus',
-                'الحالة': 'operationStatus',
-                'المستودع': 'warehouse',
-                'موقع الاسترداد': 'recoveryLocation',
-                'تاريخ الاسترداد': 'recoveryDate',
-                'القائم بالتقييم': 'evaluatorName',
-                'المقيم': 'evaluatorName',
-                'ملاحظات': 'notes',
-                'الملاحظات': 'notes',
-                // English column names
-                'contractNo': 'contractNo',
-                'customerName': 'customerName',
-                'make': 'make',
-                'model': 'model',
-                'year': 'year',
-                'plateNo': 'plateNo',
-                'odometer': 'odometer',
-                'color': 'color',
-                'fuelType': 'fuelType',
-                'marketValue': 'marketValue',
-                'overallRating': 'overallRating',
-                'recommendation': 'recommendation',
-                'operationStatus': 'operationStatus',
-                'warehouse': 'warehouse',
-                'warehouseName': 'warehouseName',
-                'recoveryDate': 'recoveryDate',
-                'recoveryLocation': 'recoveryLocation',
-                'evaluatorName': 'evaluatorName',
-                'notes': 'notes',
-                'gpsLatitude': 'gpsLatitude',
-                'gpsLongitude': 'gpsLongitude',
-                // Common variations
-                'Contract No': 'contractNo',
-                'Customer Name': 'customerName',
-                'Make': 'make',
-                'Model': 'model',
-                'Year': 'year',
-                'Plate No': 'plateNo',
-                'Odometer': 'odometer',
-                'Color': 'color',
-                'Fuel Type': 'fuelType',
-                'Market Value': 'marketValue',
-                'Overall Rating': 'overallRating',
-                'Recommendation': 'recommendation',
-                'Notes': 'notes'
-            };
-            
-            // Get original column names from Excel
-            const originalColumns = Object.keys(data[0] || {});
-            
-            // Map the data
-            const mappedData = data.map(row => {
-                const mappedRow = {};
-                Object.entries(row).forEach(([key, value]) => {
-                    const mappedKey = columnMappings[key] || key;
-                    mappedRow[mappedKey] = value;
-                });
-                return mappedRow;
-            });
-            
-            // Show preview modal
-            const previewRows = mappedData.slice(0, 5);
-            const modalHTML = `
-                <div class="modal show" id="excelPreviewModal" onclick="if(event.target===this)this.remove()">
-                    <div class="modal-content" style="max-width: 900px;">
-                        <div class="modal-header">
-                            <h3><i class="fas fa-file-excel" style="margin-left: 10px; color: #10b981;"></i>معاينة بيانات Excel</h3>
-                            <button class="btn-close" onclick="document.getElementById('excelPreviewModal').remove()">&times;</button>
-                        </div>
-                        <div class="modal-body">
-                            <div style="background: #ecfdf5; padding: 15px; border-radius: 12px; margin-bottom: 20px;">
-                                <p style="margin: 0; color: #065f46;">
-                                    <i class="fas fa-file-excel" style="margin-left: 8px;"></i>
-                                    <strong>الملف:</strong> ${filename} | 
-                                    <strong>عدد السجلات:</strong> ${data.length} مركبة
-                                </p>
-                            </div>
-                            
-                            <h4 style="margin-bottom: 15px; color: var(--dark);">
-                                <i class="fas fa-table" style="margin-left: 8px;"></i>
-                                معاينة أول ${previewRows.length} سجلات:
-                            </h4>
-                            
-                            <div style="overflow-x: auto; margin-bottom: 20px; border-radius: 12px; border: 1px solid #e5e7eb;">
-                                <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
-                                    <thead>
-                                        <tr style="background: #f8fafc;">
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">#</th>
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">رقم العقد</th>
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">اسم العميل</th>
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">الصانع</th>
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">الموديل</th>
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">السنة</th>
-                                            <th style="padding: 12px; border-bottom: 1px solid #e5e7eb; text-align: right;">القيمة</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${previewRows.map((row, idx) => `
-                                            <tr style="background: ${idx % 2 === 0 ? 'white' : '#f8fafc'};">
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${idx + 1}</td>
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.contractNo || '-'}</td>
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.customerName || '-'}</td>
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.make || '-'}</td>
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.model || '-'}</td>
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.year || '-'}</td>
-                                                <td style="padding: 10px; border-bottom: 1px solid #e5e7eb;">${row.marketValue ? parseInt(row.marketValue).toLocaleString() + ' ر.س' : '-'}</td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            </div>
-                            
-                            ${data.length > 5 ? `<p style="color: #64748b; text-align: center; margin-bottom: 20px;">...و ${data.length - 5} سجل آخر</p>` : ''}
-                            
-                            <div style="background: #fef3c7; padding: 15px; border-radius: 12px;">
-                                <p style="margin: 0; color: #92400e;">
-                                    <i class="fas fa-info-circle" style="margin-left: 8px;"></i>
-                                    <strong>ملاحظة:</strong> سيتم استيراد ${data.length} مركبة بدون صور. يمكنك إضافة الصور لاحقاً من خلال تعديل كل مركبة.
-                                </p>
-                            </div>
-                        </div>
-                        <div class="modal-footer">
-                            <button class="btn btn-outline" onclick="document.getElementById('excelPreviewModal').remove()">
-                                <i class="fas fa-times"></i> إلغاء
+                            <h2><i class="fas fa-file-import"></i> تقرير الاستيراد</h2>
+                            <button type="button" class="close-btn" onclick="document.getElementById('importReportModal').remove()">
+                                <i class="fas fa-times"></i>
                             </button>
-                            <button class="btn btn-success" onclick="confirmExcelImport()">
-                                <i class="fas fa-file-import"></i> استيراد ${data.length} مركبة
+                        </div>
+                        <div class="modal-body" style="overflow-y: auto; flex: 1;">
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 20px;">
+                                <div style="background: #d1fae5; padding: 20px; border-radius: 12px; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: 700; color: #059669;">${imported}</div>
+                                    <div style="color: #047857;">مركبات تم استيرادها</div>
+                                </div>
+                                <div style="background: #fef3c7; padding: 20px; border-radius: 12px; text-align: center;">
+                                    <div style="font-size: 2rem; font-weight: 700; color: #d97706;">${skipped}</div>
+                                    <div style="color: #b45309;">مركبات مستثناة (مطابقة)</div>
+                                </div>
+                            </div>
+                            
+                            ${skipped > 0 ? `
+                                <div style="margin-top: 20px;">
+                                    <h3 style="margin-bottom: 15px; color: var(--dark);">
+                                        <i class="fas fa-exclamation-triangle" style="color: #d97706;"></i>
+                                        السجلات المستثناة (${skipped})
+                                    </h3>
+                                    <div style="max-height: 300px; overflow-y: auto; border: 1px solid #e5e7eb; border-radius: 8px;">
+                                        <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                            <thead style="background: #f3f4f6; position: sticky; top: 0;">
+                                                <tr>
+                                                    <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">#</th>
+                                                    <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">المعرّف</th>
+                                                    <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">المركبة</th>
+                                                    <th style="padding: 10px; text-align: right; border-bottom: 1px solid #e5e7eb;">سبب الاستثناء</th>
+                                                </tr>
+                                            </thead>
+                                            <tbody>
+                                                ${duplicatesList.map((d, i) => `
+                                                    <tr style="border-bottom: 1px solid #e5e7eb;">
+                                                        <td style="padding: 10px;">${i + 1}</td>
+                                                        <td style="padding: 10px; font-family: monospace; font-size: 0.8rem;">${d.identifier}</td>
+                                                        <td style="padding: 10px;">${d.vehicle.make || ''} ${d.vehicle.model || ''} ${d.vehicle.year || ''}</td>
+                                                        <td style="padding: 10px; color: #d97706;">${d.reason}</td>
+                                                    </tr>
+                                                `).join('')}
+                                            </tbody>
+                                        </table>
+                                    </div>
+                                </div>
+                            ` : ''}
+                        </div>
+                        <div class="modal-footer" style="border-top: 1px solid #e5e7eb; padding: 15px 20px;">
+                            <button class="btn btn-primary" onclick="document.getElementById('importReportModal').remove()">
+                                <i class="fas fa-check"></i> حسناً
                             </button>
                         </div>
                     </div>
                 </div>
             `;
             
-            // Store mapped data for import
-            window._pendingExcelImport = mappedData;
-            
             document.body.insertAdjacentHTML('beforeend', modalHTML);
-        }
-        
-        async function confirmExcelImport() {
-            const data = window._pendingExcelImport;
-            if (!data || data.length === 0) {
-                showNotification('لا توجد بيانات للاستيراد', 'warning');
-                return;
-            }
             
-            // Close preview modal
-            document.getElementById('excelPreviewModal')?.remove();
-            
-            // Ensure Supabase client is initialized
-            if (!supabaseClient) {
-                showNotification('خطأ: لم يتم تحميل النظام. يرجى تحديث الصفحة.', 'error');
-                return;
-            }
-            
-            showLoading(`جاري استيراد ${data.length} مركبة من Excel...`);
-            
-            try {
-                // Rating mappings
-                const ratingMap = {
-                    'ممتاز': 'excellent',
-                    'جيد': 'good',
-                    'مقبول': 'fair',
-                    'ضعيف': 'poor',
-                    'excellent': 'excellent',
-                    'good': 'good',
-                    'fair': 'fair',
-                    'poor': 'poor'
-                };
-                
-                // Recommendation mappings
-                const recommendationMap = {
-                    'البيع كما هي': 'sell_as_is',
-                    'إصلاح ثم بيع': 'repair_sell',
-                    'مزاد': 'auction',
-                    'تخريد': 'scrap',
-                    'sell_as_is': 'sell_as_is',
-                    'repair_sell': 'repair_sell',
-                    'auction': 'auction',
-                    'scrap': 'scrap'
-                };
-                
-                // Fuel type mappings
-                const fuelTypeMap = {
-                    'بنزين': 'petrol',
-                    'ديزل': 'diesel',
-                    'هجين': 'hybrid',
-                    'كهربائي': 'electric',
-                    'petrol': 'petrol',
-                    'diesel': 'diesel',
-                    'hybrid': 'hybrid',
-                    'electric': 'electric'
-                };
-                
-                // Operation status mappings
-                const statusMap = {
-                    'تعمل': 'working',
-                    'لا تعمل': 'not_working',
-                    'تحتاج صيانة': 'needs_maintenance',
-                    'working': 'working',
-                    'not_working': 'not_working',
-                    'needs_maintenance': 'needs_maintenance'
-                };
-                
-                // Prepare vehicles for insert
-                const vehiclesToInsert = data.map(row => ({
-                    contractNo: cleanValue(row.contractNo),
-                    customerName: cleanValue(row.customerName),
-                    make: cleanValue(row.make),
-                    model: cleanValue(row.model),
-                    year: parseIntValue(row.year),
-                    vin: cleanValue(row.vin)?.toUpperCase() || null,
-                    plateNo: cleanValue(row.plateNo),
-                    odometer: parseIntValue(row.odometer),
-                    color: cleanValue(row.color),
-                    fuelType: fuelTypeMap[row.fuelType] || cleanValue(row.fuelType),
-                    marketValue: parseNumericValue(row.marketValue),
-                    overallRating: ratingMap[row.overallRating] || cleanValue(row.overallRating) || 'good',
-                    recommendation: recommendationMap[row.recommendation] || cleanValue(row.recommendation),
-                    operationStatus: statusMap[row.operationStatus] || cleanValue(row.operationStatus),
-                    warehouse: cleanValue(row.warehouse),
-                    warehouseName: cleanValue(row.warehouseName),
-                    recoveryDate: cleanValue(row.recoveryDate),
-                    recoveryLocation: cleanValue(row.recoveryLocation),
-                    evaluatorName: cleanValue(row.evaluatorName),
-                    gpsLatitude: cleanValue(row.gpsLatitude),
-                    gpsLongitude: cleanValue(row.gpsLongitude),
-                    notes: cleanValue(row.notes),
-                    images: [], // No images from Excel
-                    user_id: currentUser.id,
-                    created_at: new Date().toISOString(),
-                    updated_at: new Date().toISOString(),
-                    deleted: false
-                }));
-                
-                // Filter out completely empty rows
-                const validVehicles = vehiclesToInsert.filter(v => 
-                    v.contractNo || v.customerName || v.make || v.model || v.vin
-                );
-                
-                if (validVehicles.length === 0) {
-                    hideLoading();
-                    showNotification('لا توجد بيانات صالحة للاستيراد. تأكد من أن الملف يحتوي على بيانات في الأعمدة الصحيحة.', 'warning');
-                    return;
-                }
-                
-                // Insert in batches of 50
-                const batchSize = 50;
-                let insertedCount = 0;
-                
-                for (let i = 0; i < validVehicles.length; i += batchSize) {
-                    const batch = validVehicles.slice(i, i + batchSize);
-                    
-                    const { error } = await supabaseClient
-                        .from('vehicles')
-                        .insert(batch);
-                    
-                    if (error) throw error;
-                    
-                    insertedCount += batch.length;
-                    showLoading(`جاري الاستيراد... (${insertedCount}/${validVehicles.length})`);
-                }
-                
-                // Reload vehicles
-                await loadVehicles();
-                
-                hideLoading();
-                showNotification(`تم استيراد ${validVehicles.length} مركبة من Excel بنجاح!`, 'success');
-                
-                // Log activity
-                if (window.NFActivity) {
-                    NFActivity.log('IMPORT_DATA', { 
-                        count: validVehicles.length, 
-                        format: 'Excel',
-                        originalCount: data.length
-                    });
-                }
-                
-                // Clear pending data
-                window._pendingExcelImport = null;
-                
-            } catch (error) {
-                console.error('Excel Import Error:', error);
-                hideLoading();
-                showNotification('خطأ في استيراد البيانات: ' + error.message, 'error');
+            // Also show notification
+            if (imported > 0) {
+                showNotification(`تم استيراد ${imported} مركبة بنجاح${skipped > 0 ? ` (${skipped} مستثناة لأنها موجودة)` : ''}`, 'success');
+            } else {
+                showNotification(`لم يتم استيراد أي مركبة - جميعها موجودة مسبقاً (${skipped} مستثناة)`, 'warning');
             }
         }
 
@@ -3334,6 +3077,11 @@
             document.getElementById('confirmBtn').innerHTML = '<i class="fas fa-sign-out-alt"></i> خروج';
             document.getElementById('confirmBtn').className = 'btn btn-warning';
             confirmCallback = async () => {
+                // Log activity before logout
+                if (window.NFActivity) {
+                    NFActivity.log('LOGOUT', { message: 'تم تسجيل الخروج' });
+                }
+                
                 showLoading('جاري تسجيل الخروج...');
                 try {
                     // Unsubscribe from realtime
@@ -3431,15 +3179,6 @@
                         `;
                     }
                     
-                    // Log GPS capture
-                    if (window.NFActivity) {
-                        NFActivity.log('GPS_CAPTURED', {
-                            latitude: lat,
-                            longitude: lng,
-                            accuracy: position.coords.accuracy
-                        });
-                    }
-                    
                     showNotification('تم التقاط الموقع الجغرافي بنجاح', 'success');
                 },
                 (error) => {
@@ -3504,12 +3243,24 @@
         }
         
         // Current active section
-        let currentSection = 'dashboard';
+        let currentSection = 'vehicles';
         
         async function showSection(section) {
-            // Store previous section for animation
-            const prevSection = currentSection;
             currentSection = section;
+            
+            // Log section navigation
+            if (window.NFActivity) {
+                const sectionNames = {
+                    'dashboard': 'لوحة التحكم',
+                    'vehicles': 'المركبات',
+                    'activities': 'سجل النشاطات',
+                    'warehouse': 'المستودعات',
+                    'evaluators': 'القائمين بالتقييم'
+                };
+                NFActivity.log('SECTION_OPENED', {
+                    section: sectionNames[section] || section
+                });
+            }
             
             // Update menu active state
             document.querySelectorAll('.menu-item').forEach(item => {
@@ -3520,90 +3271,42 @@
                 if (menuItem) menuItem.classList.add('active');
             }
             
-            // Hide ALL sections first
-            const allSections = document.querySelectorAll('.content-section');
-            allSections.forEach(sec => {
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(sec => {
                 sec.classList.remove('active');
             });
             
             // Show filters and stats only for vehicles/dashboard sections
             const filtersContainer = document.getElementById('nf-filters-container');
             const statsContainer = document.getElementById('nf-enhanced-stats');
-            const topBarTitle = document.querySelector('.top-bar h1');
             
-            // Update page title based on section
-            const sectionTitles = {
-                'dashboard': 'لوحة التحكم',
-                'vehicles': 'المركبات',
-                'activities': 'سجل النشاطات',
-                'warehouse': 'المستودعات',
-                'evaluators': 'القائمين بالتقييم'
-            };
-            
-            const sectionIcons = {
-                'dashboard': 'th-large',
-                'vehicles': 'car',
-                'activities': 'history',
-                'warehouse': 'warehouse',
-                'evaluators': 'user-tie'
-            };
-            
-            // Update top bar title
-            if (topBarTitle) {
-                const userName = document.getElementById('profileName')?.textContent || 'المستخدم';
-                if (section === 'dashboard' || section === 'vehicles') {
-                    topBarTitle.innerHTML = `مرحباً، <span id="profileName">${userName}</span> 👋`;
-                } else {
-                    topBarTitle.innerHTML = `<i class="fas fa-${sectionIcons[section] || 'circle'}" style="margin-left: 10px; color: var(--primary);"></i>${sectionTitles[section] || section}`;
-                }
-            }
-            
-            // Handle each section type
             if (section === 'dashboard' || section === 'vehicles') {
-                // Show filters and stats for vehicles view
                 if (filtersContainer) filtersContainer.style.display = 'block';
                 if (statsContainer) statsContainer.style.display = 'block';
-                
-                // Show vehicles section
-                const vehiclesSection = document.getElementById('vehiclesSection');
-                if (vehiclesSection) {
-                    setTimeout(() => vehiclesSection.classList.add('active'), 10);
-                }
+                document.getElementById('vehiclesSection').classList.add('active');
             } else {
-                // Hide filters and stats for non-vehicle sections
                 if (filtersContainer) filtersContainer.style.display = 'none';
                 if (statsContainer) statsContainer.style.display = 'none';
-                
-                // Show the selected section
-                if (section === 'activities') {
-                    const activitiesSection = document.getElementById('activitiesSection');
-                    if (activitiesSection) {
-                        setTimeout(() => activitiesSection.classList.add('active'), 10);
-                        await loadActivitiesPage();
-                    }
-                } else if (section === 'warehouse') {
-                    const warehouseSection = document.getElementById('warehouseSection');
-                    if (warehouseSection) {
-                        setTimeout(() => warehouseSection.classList.add('active'), 10);
-                        await loadWarehousePage();
-                    }
-                } else if (section === 'evaluators') {
-                    const evaluatorsSection = document.getElementById('evaluatorsSection');
-                    if (evaluatorsSection) {
-                        setTimeout(() => evaluatorsSection.classList.add('active'), 10);
-                        await loadEvaluatorsPage();
-                    }
-                }
+            }
+            
+            // Handle specific sections
+            if (section === 'activities') {
+                const activitiesSection = document.getElementById('activitiesSection');
+                activitiesSection.classList.add('active');
+                await loadActivitiesPage();
+            } else if (section === 'warehouse') {
+                const warehouseSection = document.getElementById('warehouseSection');
+                warehouseSection.classList.add('active');
+                await loadWarehousePage();
+            } else if (section === 'evaluators') {
+                const evaluatorsSection = document.getElementById('evaluatorsSection');
+                evaluatorsSection.classList.add('active');
+                await loadEvaluatorsPage();
             }
             
             // Close mobile sidebar
             if (window.innerWidth <= 992) {
-                closeSidebar();
-            }
-            
-            // Log section change
-            if (window.NFActivity) {
-                NFActivity.log('SECTION_CHANGE', { section: section });
+                toggleSidebar();
             }
         }
         
@@ -3629,93 +3332,123 @@
         // Load warehouse page
         async function loadWarehousePage() {
             const container = document.getElementById('warehouseSection');
+            if (!container) {
+                console.error('Warehouse section container not found');
+                return;
+            }
+            
             container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري تحميل المستودعات...</div>';
             
-            // Use enhanced warehouse if available
-            if (window.NFWarehouseEnhanced && window.NFWarehouse) {
-                const warehouses = await NFWarehouse.getAll();
-                const stats = await NFWarehouse.getStats(vehicles);
-                container.innerHTML = NFWarehouseEnhanced.createWarehousePageHTML(warehouses, stats);
-            } else if (window.NFWarehouse) {
-                const warehouses = await NFWarehouse.getAll();
-                const stats = await NFWarehouse.getStats(vehicles);
-                container.innerHTML = NFWarehouse.createPageHTML(warehouses, stats);
-            } else {
-                // Fallback warehouse display
-                const defaultWarehouses = [
-                    { id: 'main', name: 'المستودع الرئيسي', location: 'الرياض', capacity: 100 },
-                    { id: 'east', name: 'المستودع الشرقي', location: 'الدمام', capacity: 50 },
-                    { id: 'west', name: 'المستودع الغربي', location: 'جدة', capacity: 75 }
-                ];
-                
-                const stats = {};
-                vehicles.forEach(v => {
-                    const wh = v.warehouse || 'unassigned';
-                    stats[wh] = (stats[wh] || 0) + 1;
-                });
-                const totalVehicles = vehicles.length;
-                
-                container.innerHTML = `
-                    <div class="nf-warehouse-page">
-                        <div class="nf-warehouse-header">
-                            <h2><i class="fas fa-warehouse"></i> إدارة المستودعات</h2>
+            // Small delay to ensure NFWarehouse is fully loaded
+            await new Promise(resolve => setTimeout(resolve, 100));
+            
+            try {
+                // Use NFWarehouse if available
+                if (window.NFWarehouse && typeof window.NFWarehouse.getAll === 'function') {
+                    console.log('Loading warehouses using NFWarehouse...');
+                    
+                    // Add timeout to prevent infinite loading
+                    const timeoutPromise = new Promise((_, reject) => 
+                        setTimeout(() => reject(new Error('Timeout - warehouse loading took too long')), 8000)
+                    );
+                    
+                    const warehousesPromise = window.NFWarehouse.getAll();
+                    const warehouses = await Promise.race([warehousesPromise, timeoutPromise]);
+                    
+                    console.log('Warehouses received:', warehouses);
+                    
+                    const stats = await window.NFWarehouse.getStats(vehicles || []);
+                    console.log('Stats received:', stats);
+                    
+                    if (typeof window.NFWarehouse.createPageHTML === 'function') {
+                        container.innerHTML = window.NFWarehouse.createPageHTML(warehouses, stats);
+                        console.log('Warehouses page rendered successfully');
+                        return;
+                    } else {
+                        console.error('createPageHTML function not found');
+                    }
+                } else {
+                    console.log('NFWarehouse not available or getAll not a function');
+                    console.log('NFWarehouse:', window.NFWarehouse);
+                }
+            } catch (error) {
+                console.error('Error loading warehouses:', error.message || error);
+            }
+            
+            // Fallback warehouse display
+            const defaultWarehouses = [
+                { id: 'main', name: 'المستودع الرئيسي', location: 'الرياض', capacity: 100 },
+                { id: 'east', name: 'المستودع الشرقي', location: 'الدمام', capacity: 50 },
+                { id: 'west', name: 'المستودع الغربي', location: 'جدة', capacity: 75 }
+            ];
+            
+            const stats = {};
+            (vehicles || []).forEach(v => {
+                const wh = v.warehouse || 'unassigned';
+                stats[wh] = (stats[wh] || 0) + 1;
+            });
+            const totalVehicles = (vehicles || []).length;
+            
+            container.innerHTML = `
+                <div class="nf-warehouse-page">
+                    <div class="nf-warehouse-header">
+                        <h2><i class="fas fa-warehouse"></i> إدارة المستودعات</h2>
+                    </div>
+                    
+                    <div class="nf-warehouse-stats">
+                        <div class="nf-wh-stat-card">
+                            <i class="fas fa-warehouse"></i>
+                            <div class="nf-wh-stat-value">${defaultWarehouses.length}</div>
+                            <div class="nf-wh-stat-label">المستودعات</div>
                         </div>
-                        
-                        <div class="nf-warehouse-stats">
-                            <div class="nf-wh-stat-card">
-                                <i class="fas fa-warehouse"></i>
-                                <div class="nf-wh-stat-value">${defaultWarehouses.length}</div>
-                                <div class="nf-wh-stat-label">المستودعات</div>
-                            </div>
-                            <div class="nf-wh-stat-card">
-                                <i class="fas fa-car"></i>
-                                <div class="nf-wh-stat-value">${totalVehicles}</div>
-                                <div class="nf-wh-stat-label">المركبات</div>
-                            </div>
-                            <div class="nf-wh-stat-card">
-                                <i class="fas fa-question-circle"></i>
-                                <div class="nf-wh-stat-value">${stats.unassigned || 0}</div>
-                                <div class="nf-wh-stat-label">غير مخصصة</div>
-                            </div>
+                        <div class="nf-wh-stat-card">
+                            <i class="fas fa-car"></i>
+                            <div class="nf-wh-stat-value">${totalVehicles}</div>
+                            <div class="nf-wh-stat-label">المركبات</div>
                         </div>
-                        
-                        <div class="nf-warehouse-grid">
-                            ${defaultWarehouses.map(wh => {
-                                const count = stats[wh.id] || 0;
-                                const percentage = wh.capacity > 0 ? Math.round((count / wh.capacity) * 100) : 0;
-                                const statusClass = percentage >= 90 ? 'full' : percentage >= 70 ? 'warning' : 'ok';
-                                
-                                return `
-                                    <div class="nf-warehouse-card">
-                                        <div class="nf-wh-card-header">
-                                            <h3>${wh.name}</h3>
-                                            <span class="nf-wh-location">
-                                                <i class="fas fa-map-marker-alt"></i> ${wh.location}
-                                            </span>
-                                        </div>
-                                        <div class="nf-wh-card-body">
-                                            <div class="nf-wh-capacity">
-                                                <div class="nf-wh-capacity-bar">
-                                                    <div class="nf-wh-capacity-fill ${statusClass}" style="width: ${percentage}%"></div>
-                                                </div>
-                                                <div class="nf-wh-capacity-text">
-                                                    <span>${count} / ${wh.capacity}</span>
-                                                    <span>${percentage}%</span>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        <div class="nf-wh-card-footer">
-                                            <button class="btn btn-outline btn-sm" onclick="filterByWarehouse('${wh.id}')">
-                                                <i class="fas fa-car"></i> عرض المركبات
-                                            </button>
-                                        </div>
-                                    </div>
-                                `;
-                            }).join('')}
+                        <div class="nf-wh-stat-card">
+                            <i class="fas fa-question-circle"></i>
+                            <div class="nf-wh-stat-value">${stats.unassigned || 0}</div>
+                            <div class="nf-wh-stat-label">غير مخصصة</div>
                         </div>
                     </div>
-                `;
-            }
+                    
+                    <div class="nf-warehouse-grid">
+                        ${defaultWarehouses.map(wh => {
+                            const count = stats[wh.id] || 0;
+                            const percentage = wh.capacity > 0 ? Math.round((count / wh.capacity) * 100) : 0;
+                            const statusClass = percentage >= 90 ? 'full' : percentage >= 70 ? 'warning' : 'ok';
+                            
+                            return `
+                                <div class="nf-warehouse-card">
+                                    <div class="nf-wh-card-header">
+                                        <h3>${wh.name}</h3>
+                                        <span class="nf-wh-location">
+                                            <i class="fas fa-map-marker-alt"></i> ${wh.location}
+                                        </span>
+                                    </div>
+                                    <div class="nf-wh-card-body">
+                                        <div class="nf-wh-capacity">
+                                            <div class="nf-wh-capacity-bar">
+                                                <div class="nf-wh-capacity-fill ${statusClass}" style="width: ${percentage}%"></div>
+                                            </div>
+                                            <div class="nf-wh-capacity-text">
+                                                <span>${count} / ${wh.capacity}</span>
+                                                <span>${percentage}%</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <div class="nf-wh-card-footer">
+                                        <button class="btn btn-outline btn-sm" onclick="filterByWarehouse('${wh.id}')">
+                                            <i class="fas fa-car"></i> عرض المركبات
+                                        </button>
+                                    </div>
+                                </div>
+                            `;
+                        }).join('')}
+                    </div>
+                </div>
+            `;
         }
         
         // Filter vehicles by warehouse
@@ -3737,9 +3470,27 @@
                     
                     // Count vehicles per evaluator
                     const evaluatorStats = {};
-                    vehicles.forEach(v => {
+                    const evaluatorVehicleValues = {};
+                    (vehicles || []).forEach(v => {
                         if (v.evaluatorId) {
                             evaluatorStats[v.evaluatorId] = (evaluatorStats[v.evaluatorId] || 0) + 1;
+                            evaluatorVehicleValues[v.evaluatorId] = (evaluatorVehicleValues[v.evaluatorId] || 0) + (parseFloat(v.marketValue) || 0);
+                        }
+                    });
+                    
+                    // Calculate statistics
+                    const totalEvaluatedVehicles = Object.values(evaluatorStats).reduce((a, b) => a + b, 0);
+                    const avgVehiclesPerEvaluator = evaluators.length > 0 ? Math.round(totalEvaluatedVehicles / evaluators.length) : 0;
+                    const totalEvaluatedValue = Object.values(evaluatorVehicleValues).reduce((a, b) => a + b, 0);
+                    
+                    // Find top evaluator
+                    let topEvaluator = null;
+                    let topCount = 0;
+                    evaluators.forEach(e => {
+                        const count = evaluatorStats[e.id] || 0;
+                        if (count > topCount) {
+                            topCount = count;
+                            topEvaluator = e.name;
                         }
                     });
                     
@@ -3760,41 +3511,80 @@
                                 </div>
                                 <div class="nf-wh-stat-card">
                                     <i class="fas fa-car"></i>
-                                    <div class="nf-wh-stat-value">${Object.values(evaluatorStats).reduce((a, b) => a + b, 0)}</div>
-                                    <div class="nf-wh-stat-label">مركبات مقيّمة</div>
+                                    <div class="nf-wh-stat-value">${totalEvaluatedVehicles}</div>
+                                    <div class="nf-wh-stat-label">مركبات مُقيَّمة</div>
+                                </div>
+                                <div class="nf-wh-stat-card">
+                                    <i class="fas fa-chart-bar"></i>
+                                    <div class="nf-wh-stat-value">${avgVehiclesPerEvaluator}</div>
+                                    <div class="nf-wh-stat-label">متوسط لكل قائم</div>
+                                </div>
+                                <div class="nf-wh-stat-card">
+                                    <i class="fas fa-money-bill-wave"></i>
+                                    <div class="nf-wh-stat-value">${totalEvaluatedValue.toLocaleString()}</div>
+                                    <div class="nf-wh-stat-label">إجمالي القيمة (ر.س)</div>
                                 </div>
                             </div>
                             
+                            ${topEvaluator ? `
+                            <div style="background: linear-gradient(135deg, #fef3c7, #fde68a); padding: 15px 20px; border-radius: 12px; margin-bottom: 20px; display: flex; align-items: center; gap: 15px;">
+                                <i class="fas fa-trophy" style="color: #f59e0b; font-size: 2rem;"></i>
+                                <div>
+                                    <strong style="color: #92400e;">أعلى أداء:</strong>
+                                    <span style="color: #78350f;">${topEvaluator} (${topCount} مركبة)</span>
+                                </div>
+                            </div>
+                            ` : ''}
+                            
                             <div class="nf-warehouse-grid">
-                                ${evaluators.map(evaluator => {
+                                ${evaluators.map((evaluator, index) => {
                                     const vehicleCount = evaluatorStats[evaluator.id] || 0;
+                                    const vehicleValue = evaluatorVehicleValues[evaluator.id] || 0;
+                                    const isTopEvaluator = vehicleCount === topCount && vehicleCount > 0;
+                                    const percentage = totalEvaluatedVehicles > 0 ? Math.round((vehicleCount / totalEvaluatedVehicles) * 100) : 0;
+                                    
                                     return `
-                                        <div class="nf-warehouse-card" style="text-align: center;">
-                                            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, var(--primary), var(--secondary)); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem;">
+                                        <div class="nf-warehouse-card evaluator-card" style="text-align: center; animation-delay: ${index * 0.1}s; ${isTopEvaluator ? 'border: 2px solid #f59e0b; box-shadow: 0 0 20px rgba(245, 158, 11, 0.2);' : ''}">
+                                            ${isTopEvaluator ? '<div style="position: absolute; top: -10px; right: -10px; background: #f59e0b; color: white; width: 30px; height: 30px; border-radius: 50%; display: flex; align-items: center; justify-content: center;"><i class="fas fa-crown"></i></div>' : ''}
+                                            <div style="width: 80px; height: 80px; background: linear-gradient(135deg, ${isTopEvaluator ? '#f59e0b, #d97706' : 'var(--primary), var(--secondary)'}); border-radius: 50%; margin: 0 auto 15px; display: flex; align-items: center; justify-content: center; color: white; font-size: 2rem; box-shadow: 0 4px 15px rgba(0,0,0,0.1);">
                                                 <i class="fas fa-user"></i>
                                             </div>
-                                            <h3 style="margin-bottom: 5px; color: var(--dark);">${evaluator.name}</h3>
-                                            <p style="color: #64748b; margin-bottom: 15px;">
-                                                <i class="fas fa-id-badge"></i> ${evaluator.employeeId || '-'}
+                                            <h3 style="margin-bottom: 5px; color: var(--dark); font-size: 1.2rem;">${evaluator.name}</h3>
+                                            <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">
+                                                <i class="fas fa-id-badge"></i> ${evaluator.employeeId || 'غير محدد'}
                                             </p>
                                             ${evaluator.phone ? `
-                                                <p style="color: #64748b; margin-bottom: 15px;">
+                                                <p style="color: #64748b; margin-bottom: 10px; font-size: 0.9rem;">
                                                     <i class="fas fa-phone"></i>
-                                                    <a href="tel:${evaluator.phone}" style="color: var(--primary);">${evaluator.phone}</a>
+                                                    <a href="tel:${evaluator.phone}" style="color: var(--primary); text-decoration: none;">${evaluator.phone}</a>
                                                 </p>
                                             ` : ''}
-                                            <div class="nf-wh-card-body" style="background: #f8fafc; padding: 15px; border-radius: 12px; margin-bottom: 15px;">
-                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px;">
-                                                    <i class="fas fa-car" style="color: var(--primary);"></i>
-                                                    <span style="font-size: 1.2rem; font-weight: 700;">${vehicleCount}</span>
-                                                    <span style="color: #64748b;">مركبة</span>
+                                            
+                                            <div style="background: linear-gradient(135deg, #f8fafc, #e2e8f0); padding: 20px; border-radius: 12px; margin: 15px 0;">
+                                                <div style="display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 10px;">
+                                                    <i class="fas fa-car" style="color: ${isTopEvaluator ? '#f59e0b' : 'var(--primary)'}; font-size: 1.5rem;"></i>
+                                                    <span style="font-size: 2rem; font-weight: 800; color: ${isTopEvaluator ? '#f59e0b' : 'var(--primary)'};">${vehicleCount}</span>
+                                                    <span style="color: #64748b; font-size: 0.9rem;">مركبة</span>
                                                 </div>
+                                                
+                                                <div style="background: #e2e8f0; height: 8px; border-radius: 4px; overflow: hidden; margin: 10px 0;">
+                                                    <div style="background: ${isTopEvaluator ? '#f59e0b' : 'var(--primary)'}; height: 100%; width: ${percentage}%; transition: width 0.5s ease;"></div>
+                                                </div>
+                                                <div style="color: #64748b; font-size: 0.8rem;">${percentage}% من إجمالي التقييمات</div>
+                                                
+                                                ${vehicleValue > 0 ? `
+                                                <div style="margin-top: 10px; padding-top: 10px; border-top: 1px solid #cbd5e1;">
+                                                    <span style="color: #64748b; font-size: 0.8rem;"><i class="fas fa-money-bill"></i> القيمة:</span>
+                                                    <span style="font-weight: 600; color: var(--dark);">${vehicleValue.toLocaleString()} ر.س</span>
+                                                </div>
+                                                ` : ''}
                                             </div>
-                                            <div class="nf-wh-card-footer" style="display: flex; gap: 8px; justify-content: center;">
-                                                <button class="btn btn-outline btn-sm" onclick="filterByEvaluator('${evaluator.id}')">
+                                            
+                                            <div style="display: flex; gap: 8px; justify-content: center;">
+                                                <button class="btn btn-outline btn-sm" onclick="filterByEvaluator('${evaluator.id}')" ${vehicleCount === 0 ? 'disabled style="opacity: 0.5;"' : ''}>
                                                     <i class="fas fa-eye"></i> عرض المركبات
                                                 </button>
-                                                <button class="btn btn-danger btn-sm" onclick="confirmDeleteEvaluator('${evaluator.id}', '${evaluator.name}')" style="background: #fee2e2; color: #991b1b;">
+                                                <button class="btn btn-sm" onclick="confirmDeleteEvaluator('${evaluator.id}', '${evaluator.name}')" style="background: #fee2e2; color: #991b1b; border: none;">
                                                     <i class="fas fa-trash"></i>
                                                 </button>
                                             </div>
@@ -3802,6 +3592,14 @@
                                     `;
                                 }).join('')}
                             </div>
+                            
+                            ${evaluators.length === 0 ? `
+                            <div class="nf-empty-state" style="text-align: center; padding: 40px;">
+                                <i class="fas fa-user-plus" style="font-size: 4rem; color: #cbd5e1; margin-bottom: 20px;"></i>
+                                <h3 style="color: var(--dark);">لا يوجد قائمين بالتقييم</h3>
+                                <p style="color: #64748b;">اضغط على "إضافة قائم بالتقييم" للبدء</p>
+                            </div>
+                            ` : ''}
                         </div>
                     `;
                 } catch (error) {
@@ -4048,6 +3846,67 @@
             if (window.NFStats && vehicles.length >= 0) {
                 NFStats.update('nf-enhanced-stats', vehicles);
             }
+        };
+    </script>
+    
+    <script>
+        // Override showSection to handle activity log loading
+        const originalShowSection = window.showSection;
+        window.showSection = function(sectionId) {
+            // Fix for different section IDs in HTML vs script
+            let targetId = sectionId;
+            if (sectionId === 'activity') targetId = 'activities';
+            
+            console.log('Showing section:', targetId);
+            
+            // Hide all sections
+            document.querySelectorAll('.content-section').forEach(s => {
+                s.classList.remove('active');
+                s.style.display = 'none';
+            });
+            
+            // Show target section
+            const section = document.getElementById(targetId + 'Section');
+            if (section) {
+                section.classList.add('active');
+                section.style.display = 'block';
+                
+                // Trigger refresh if needed
+                if (targetId === 'activities' && window.NFActivity) {
+                    console.log('Refreshing activities section');
+                    window.NFActivity.refreshActivities();
+                } else if (targetId === 'warehouse' && window.NFWarehouse) {
+                    console.log('Refreshing warehouse section');
+                    if (typeof window.NFWarehouse.refreshWarehouses === 'function') {
+                        window.NFWarehouse.refreshWarehouses();
+                    }
+                } else if (targetId === 'evaluators' && window.NFEvaluators) {
+                    console.log('Refreshing evaluators section');
+                    if (typeof window.NFEvaluators.refreshEvaluators === 'function') {
+                        window.NFEvaluators.refreshEvaluators();
+                    }
+                }
+            }
+            
+            // Update menu active state
+            document.querySelectorAll('.menu-item').forEach(item => {
+                item.classList.remove('active');
+                if (item.getAttribute('onclick')?.includes(`'${sectionId}'`)) {
+                    item.classList.add('active');
+                }
+            });
+            
+            // Update title
+            const titleMap = {
+                'dashboard': 'لوحة التحكم',
+                'vehicles': 'إدارة المركبات',
+                'activities': 'سجل النشاطات',
+                'activity': 'سجل النشاطات',
+                'warehouse': 'إدارة المستودعات',
+                'evaluators': 'القائمين بالتقييم'
+            };
+            const titleEl = document.getElementById('sectionTitle');
+            if (titleEl) titleEl.textContent = titleMap[targetId] || titleMap[sectionId] || 'النظام';
         };
     </script>
 </body>

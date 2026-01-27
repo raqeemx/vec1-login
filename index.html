@@ -16,7 +16,6 @@
     <link rel="stylesheet" href="css/new-features/dark-mode.css">
     <link rel="stylesheet" href="css/new-features/notifications.css">
     <link rel="stylesheet" href="css/new-features/validation.css">
-    <link rel="stylesheet" href="css/new-features/mobile-responsive.css">
     
     <!-- UX Animations -->
     <link rel="stylesheet" href="css/animations.css">
@@ -96,18 +95,6 @@
         .logo-section {
             text-align: center;
             margin-bottom: 30px;
-            animation: logoFadeIn 0.8s ease-out;
-        }
-        
-        @keyframes logoFadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
         }
 
         .logo-icon {
@@ -120,21 +107,6 @@
             justify-content: center;
             margin: 0 auto 15px;
             box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            animation: logoIconPulse 3s ease-in-out infinite;
-            transition: transform 0.3s ease;
-        }
-        
-        .logo-icon:hover {
-            transform: scale(1.1) rotate(5deg);
-        }
-        
-        @keyframes logoIconPulse {
-            0%, 100% {
-                box-shadow: 0 10px 30px rgba(0,0,0,0.2);
-            }
-            50% {
-                box-shadow: 0 15px 40px rgba(0,0,0,0.3), 0 0 20px rgba(102, 126, 234, 0.3);
-            }
         }
 
         .logo-icon i {
@@ -143,12 +115,6 @@
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             background-clip: text;
-            animation: iconBounce 2s ease-in-out infinite;
-        }
-        
-        @keyframes iconBounce {
-            0%, 100% { transform: translateY(0); }
-            50% { transform: translateY(-5px); }
         }
 
         .logo-section h1 {
@@ -156,36 +122,12 @@
             font-size: 1.8rem;
             font-weight: 700;
             text-shadow: 0 2px 10px rgba(0,0,0,0.2);
-            animation: titleSlideIn 0.8s ease-out 0.2s both;
-        }
-        
-        @keyframes titleSlideIn {
-            from {
-                opacity: 0;
-                transform: translateX(20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
         }
 
         .logo-section p {
             color: rgba(255,255,255,0.9);
             font-size: 0.95rem;
             margin-top: 5px;
-            animation: subtitleSlideIn 0.8s ease-out 0.4s both;
-        }
-        
-        @keyframes subtitleSlideIn {
-            from {
-                opacity: 0;
-                transform: translateX(-20px);
-            }
-            to {
-                opacity: 1;
-                transform: translateX(0);
-            }
         }
 
         .auth-card {
@@ -193,24 +135,11 @@
             border-radius: 24px;
             box-shadow: 0 25px 50px rgba(0,0,0,0.25);
             overflow: hidden;
-            animation: cardSlideUp 0.6s ease-out;
-        }
-        
-        @keyframes cardSlideUp {
-            from {
-                opacity: 0;
-                transform: translateY(40px) scale(0.95);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scale(1);
-            }
         }
 
         .auth-tabs {
             display: flex;
             background: #f1f5f9;
-            position: relative;
         }
 
         .auth-tab {
@@ -220,38 +149,20 @@
             cursor: pointer;
             font-weight: 600;
             color: #64748b;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             border: none;
             background: transparent;
             font-size: 1rem;
             font-family: inherit;
-            position: relative;
-            z-index: 1;
         }
 
         .auth-tab.active {
             background: white;
             color: var(--primary);
-            transform: translateY(-2px);
-            box-shadow: 0 -2px 10px rgba(102, 126, 234, 0.1);
         }
 
         .auth-tab:hover:not(.active) {
             background: #e2e8f0;
-            transform: scale(1.02);
-        }
-        
-        .auth-tab:active {
-            transform: scale(0.98);
-        }
-        
-        .auth-tab i {
-            margin-left: 5px;
-            transition: transform 0.3s ease;
-        }
-        
-        .auth-tab:hover i {
-            transform: scale(1.2);
         }
 
         .auth-content {
@@ -260,43 +171,16 @@
 
         .form-panel {
             display: none;
-            position: relative;
         }
 
         .form-panel.active {
             display: block;
-            animation: panelSlideIn 0.5s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        .form-panel.slide-out {
-            animation: panelSlideOut 0.3s cubic-bezier(0.4, 0, 0.2, 1) forwards;
+            animation: fadeIn 0.3s ease;
         }
 
         @keyframes fadeIn {
             from { opacity: 0; transform: translateY(10px); }
             to { opacity: 1; transform: translateY(0); }
-        }
-        
-        @keyframes panelSlideIn {
-            from { 
-                opacity: 0; 
-                transform: translateX(30px); 
-            }
-            to { 
-                opacity: 1; 
-                transform: translateX(0); 
-            }
-        }
-        
-        @keyframes panelSlideOut {
-            from { 
-                opacity: 1; 
-                transform: translateX(0); 
-            }
-            to { 
-                opacity: 0; 
-                transform: translateX(-30px); 
-            }
         }
 
         .form-group {
@@ -331,7 +215,7 @@
             border-radius: 12px;
             font-size: 1rem;
             font-family: inherit;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             background: #f8fafc;
         }
 
@@ -339,13 +223,7 @@
             outline: none;
             border-color: var(--primary);
             background: white;
-            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.15), 0 5px 15px rgba(102, 126, 234, 0.1);
-            transform: translateY(-2px);
-        }
-        
-        .input-wrapper input:hover:not(:focus) {
-            border-color: #cbd5e1;
-            background: #f1f5f9;
+            box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
         }
 
         .toggle-password {
@@ -407,48 +285,22 @@
             font-weight: 700;
             font-family: inherit;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
             gap: 10px;
-            position: relative;
-            overflow: hidden;
-        }
-        
-        .btn-submit::before {
-            content: '';
-            position: absolute;
-            top: 0;
-            left: -100%;
-            width: 100%;
-            height: 100%;
-            background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
-            transition: left 0.5s ease;
-        }
-        
-        .btn-submit:hover::before {
-            left: 100%;
         }
 
         .btn-submit:hover {
-            transform: translateY(-3px) scale(1.02);
-            box-shadow: 0 15px 30px rgba(102, 126, 234, 0.4);
-        }
-        
-        .btn-submit:active {
-            transform: translateY(0) scale(0.98);
-            box-shadow: 0 5px 15px rgba(102, 126, 234, 0.3);
+            transform: translateY(-2px);
+            box-shadow: 0 10px 25px rgba(102, 126, 234, 0.4);
         }
 
         .btn-submit:disabled {
             opacity: 0.7;
             cursor: not-allowed;
             transform: none;
-        }
-        
-        .btn-submit:disabled::before {
-            display: none;
         }
 
         .divider {
@@ -483,7 +335,7 @@
             border-radius: 12px;
             background: white;
             cursor: pointer;
-            transition: all 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+            transition: all 0.3s ease;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -491,27 +343,11 @@
             font-size: 0.95rem;
             font-weight: 600;
             font-family: inherit;
-            position: relative;
-            overflow: hidden;
         }
 
         .btn-social:hover {
             border-color: var(--primary);
             background: #f8fafc;
-            transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
-        }
-        
-        .btn-social:active {
-            transform: scale(0.98);
-        }
-        
-        .btn-social i {
-            transition: transform 0.3s ease;
-        }
-        
-        .btn-social:hover i {
-            transform: scale(1.2) rotate(5deg);
         }
 
         .btn-social:disabled {
@@ -530,23 +366,11 @@
             align-items: center;
             gap: 10px;
             font-size: 0.9rem;
-            transform-origin: top center;
         }
 
         .alert.show {
             display: flex;
-            animation: alertSlideDown 0.4s cubic-bezier(0.4, 0, 0.2, 1);
-        }
-        
-        @keyframes alertSlideDown {
-            from {
-                opacity: 0;
-                transform: translateY(-20px) scaleY(0.8);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0) scaleY(1);
-            }
+            animation: fadeIn 0.3s ease;
         }
 
         .alert-error {
@@ -708,25 +532,11 @@
             gap: 6px;
             font-size: 0.8rem;
             color: #64748b;
-            transition: all 0.3s ease;
-            padding: 5px;
-            border-radius: 8px;
-        }
-        
-        .feature-item:hover {
-            background: rgba(102, 126, 234, 0.1);
-            color: var(--primary);
-            transform: translateX(-5px);
         }
 
         .feature-item i {
             color: var(--success);
             font-size: 0.75rem;
-            transition: transform 0.3s ease;
-        }
-        
-        .feature-item:hover i {
-            transform: scale(1.3);
         }
 
         /* Footer */
@@ -786,103 +596,27 @@
         }
 
         /* Responsive */
-        @media (max-width: 768px) {
-            body {
-                padding: 15px;
-            }
-            
-            .auth-container {
-                max-width: 100%;
-            }
-            
-            .logo-section h1 {
-                font-size: 1.5rem;
-            }
-            
-            .logo-icon {
-                width: 65px;
-                height: 65px;
-            }
-            
-            .logo-icon i {
-                font-size: 32px;
-            }
-            
-            .auth-card {
-                border-radius: 18px;
-            }
-            
-            .auth-tab {
-                padding: 14px 10px;
-                font-size: 0.9rem;
-            }
-            
+        @media (max-width: 480px) {
             .auth-content {
                 padding: 25px 20px;
             }
-            
-            .form-group input {
-                padding: 14px 14px 14px 45px;
-                font-size: 16px; /* Prevents zoom on iOS */
-            }
-            
-            .btn-submit {
-                padding: 15px;
-                font-size: 1rem;
-            }
-            
+
             .social-login {
                 flex-direction: column;
-                gap: 10px;
             }
-            
-            .btn-social {
-                width: 100%;
-                padding: 14px;
-            }
-            
+
             .features-grid {
                 grid-template-columns: 1fr;
             }
-            
+
             .form-options {
                 flex-direction: column;
                 gap: 15px;
                 align-items: flex-start;
             }
-        }
-        
-        @media (max-width: 480px) {
-            body {
-                padding: 10px;
-            }
-            
-            .logo-section {
-                margin-bottom: 20px;
-            }
-            
-            .logo-section h1 {
-                font-size: 1.3rem;
-            }
-            
-            .logo-section p {
-                font-size: 0.85rem;
-            }
-            
-            .auth-content {
-                padding: 20px 15px;
-            }
             
             .version-badge {
                 display: none;
-            }
-            
-            .form-group {
-                margin-bottom: 15px;
-            }
-            
-            .form-group label {
-                font-size: 0.9rem;
             }
         }
 
@@ -941,6 +675,17 @@
         html.dark .feature-item {
             color: #94a3b8;
         }
+
+        @media (prefers-reduced-motion: reduce) {
+            *,
+            *::before,
+            *::after {
+                animation-duration: 0.001ms !important;
+                animation-iteration-count: 1 !important;
+                transition-duration: 0.001ms !important;
+                scroll-behavior: auto !important;
+            }
+        }
     </style>
 </head>
 <body>
@@ -968,8 +713,8 @@
             </div>
 
             <div class="auth-content">
-                <div id="alertBox" class="alert">
-                    <i class="fas fa-info-circle"></i>
+                <div id="alertBox" class="alert" role="alert" aria-live="polite" aria-atomic="true">
+                    <i class="fas fa-info-circle" aria-hidden="true"></i>
                     <span id="alertText"></span>
                 </div>
 
@@ -977,20 +722,20 @@
                 <div id="loginPanel" class="form-panel active">
                     <form id="loginForm" onsubmit="handleLogin(event)">
                         <div class="form-group">
-                            <label>البريد الإلكتروني</label>
+                            <label for="loginEmail">البريد الإلكتروني</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" id="loginEmail" placeholder="example@email.com" required autocomplete="email">
+                                <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+                                <input type="email" id="loginEmail" name="loginEmail" placeholder="example@email.com" required autocomplete="email" inputmode="email" autocapitalize="none">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>كلمة المرور</label>
+                            <label for="loginPassword">كلمة المرور</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="loginPassword" placeholder="••••••••" required autocomplete="current-password">
-                                <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)">
-                                    <i class="fas fa-eye"></i>
+                                <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+                                <input type="password" id="loginPassword" name="loginPassword" placeholder="••••••••" required autocomplete="current-password">
+                                <button type="button" class="toggle-password" onclick="togglePassword('loginPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" aria-controls="loginPassword">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
@@ -1004,7 +749,7 @@
                         </div>
 
                         <button type="submit" class="btn-submit" id="loginBtn">
-                            <i class="fas fa-sign-in-alt"></i>
+                            <i class="fas fa-sign-in-alt" aria-hidden="true"></i>
                             <span>تسجيل الدخول</span>
                         </button>
                     </form>
@@ -1013,11 +758,11 @@
 
                     <div class="social-login">
                         <button type="button" class="btn-social google" id="googleLoginBtn" onclick="signInWithGoogle()">
-                            <i class="fab fa-google"></i>
+                            <i class="fab fa-google" aria-hidden="true"></i>
                             <span>Google</span>
                         </button>
                         <button type="button" class="btn-social microsoft" id="microsoftLoginBtn" onclick="signInWithMicrosoft()">
-                            <i class="fab fa-microsoft"></i>
+                            <i class="fab fa-microsoft" aria-hidden="true"></i>
                             <span>Microsoft</span>
                         </button>
                     </div>
@@ -1049,28 +794,28 @@
                 <div id="registerPanel" class="form-panel">
                     <form id="registerForm" onsubmit="handleRegister(event)">
                         <div class="form-group">
-                            <label>الاسم الكامل</label>
+                            <label for="registerName">الاسم الكامل</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-user input-icon"></i>
-                                <input type="text" id="registerName" placeholder="أدخل اسمك الكامل" required autocomplete="name">
+                                <i class="fas fa-user input-icon" aria-hidden="true"></i>
+                                <input type="text" id="registerName" name="registerName" placeholder="أدخل اسمك الكامل" required autocomplete="name">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>البريد الإلكتروني</label>
+                            <label for="registerEmail">البريد الإلكتروني</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" id="registerEmail" placeholder="example@email.com" required autocomplete="email">
+                                <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+                                <input type="email" id="registerEmail" name="registerEmail" placeholder="example@email.com" required autocomplete="email" inputmode="email" autocapitalize="none">
                             </div>
                         </div>
 
                         <div class="form-group">
-                            <label>كلمة المرور</label>
+                            <label for="registerPassword">كلمة المرور</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
-                                <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)">
-                                    <i class="fas fa-eye"></i>
+                                <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+                                <input type="password" id="registerPassword" name="registerPassword" placeholder="8 أحرف على الأقل" required minlength="8" autocomplete="new-password" oninput="updatePasswordStrength(this.value)">
+                                <button type="button" class="toggle-password" onclick="togglePassword('registerPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" aria-controls="registerPassword">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             </div>
                             <div class="password-strength" id="passwordStrength">
@@ -1082,18 +827,18 @@
                         </div>
 
                         <div class="form-group">
-                            <label>تأكيد كلمة المرور</label>
+                            <label for="confirmPassword">تأكيد كلمة المرور</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-lock input-icon"></i>
-                                <input type="password" id="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password" data-match="registerPassword">
-                                <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)">
-                                    <i class="fas fa-eye"></i>
+                                <i class="fas fa-lock input-icon" aria-hidden="true"></i>
+                                <input type="password" id="confirmPassword" name="confirmPassword" placeholder="أعد إدخال كلمة المرور" required autocomplete="new-password" data-match="registerPassword">
+                                <button type="button" class="toggle-password" onclick="togglePassword('confirmPassword', this)" aria-label="إظهار كلمة المرور" aria-pressed="false" aria-controls="confirmPassword">
+                                    <i class="fas fa-eye" aria-hidden="true"></i>
                                 </button>
                             </div>
                         </div>
 
                         <button type="submit" class="btn-submit" id="registerBtn">
-                            <i class="fas fa-user-plus"></i>
+                            <i class="fas fa-user-plus" aria-hidden="true"></i>
                             <span>إنشاء حساب</span>
                         </button>
                     </form>
@@ -1102,11 +847,11 @@
 
                     <div class="social-login">
                         <button type="button" class="btn-social google" onclick="signInWithGoogle()">
-                            <i class="fab fa-google"></i>
+                            <i class="fab fa-google" aria-hidden="true"></i>
                             <span>Google</span>
                         </button>
                         <button type="button" class="btn-social microsoft" onclick="signInWithMicrosoft()">
-                            <i class="fab fa-microsoft"></i>
+                            <i class="fab fa-microsoft" aria-hidden="true"></i>
                             <span>Microsoft</span>
                         </button>
                     </div>
@@ -1115,34 +860,34 @@
                 <!-- Reset Password Panel -->
                 <div id="resetPanel" class="form-panel">
                     <div class="reset-header">
-                        <i class="fas fa-key"></i>
+                        <i class="fas fa-key" aria-hidden="true"></i>
                         <h3>استعادة كلمة المرور</h3>
                         <p>أدخل بريدك الإلكتروني وسنرسل لك رابط لإعادة تعيين كلمة المرور</p>
                     </div>
 
                     <div class="success-message" id="resetSuccess">
-                        <i class="fas fa-check-circle"></i>
+                        <i class="fas fa-check-circle" aria-hidden="true"></i>
                         <strong>تم الإرسال بنجاح!</strong>
                         <p style="margin-top: 10px;">تحقق من بريدك الإلكتروني للحصول على رابط إعادة التعيين</p>
                     </div>
 
                     <form id="resetForm" onsubmit="handleResetPassword(event)">
                         <div class="form-group">
-                            <label>البريد الإلكتروني</label>
+                            <label for="resetEmail">البريد الإلكتروني</label>
                             <div class="input-wrapper">
-                                <i class="fas fa-envelope input-icon"></i>
-                                <input type="email" id="resetEmail" placeholder="example@email.com" required>
+                                <i class="fas fa-envelope input-icon" aria-hidden="true"></i>
+                                <input type="email" id="resetEmail" name="resetEmail" placeholder="example@email.com" required autocomplete="email" inputmode="email" autocapitalize="none">
                             </div>
                         </div>
 
                         <button type="submit" class="btn-submit" id="resetBtn">
-                            <i class="fas fa-paper-plane"></i>
+                            <i class="fas fa-paper-plane" aria-hidden="true"></i>
                             <span>إرسال رابط الاستعادة</span>
                         </button>
                     </form>
 
                     <button class="btn-back" onclick="showLoginPanel()">
-                        <i class="fas fa-arrow-right"></i>
+                        <i class="fas fa-arrow-right" aria-hidden="true"></i>
                         العودة لتسجيل الدخول
                     </button>
                 </div>
@@ -1156,14 +901,14 @@
 
     <div class="loading-overlay" id="loadingOverlay">
         <div class="loading-content">
-            <div class="loading-spinner"></div>
+            <div class="loading-spinner" aria-hidden="true"></div>
             <p id="loadingText">جاري المعالجة...</p>
         </div>
     </div>
 
     <!-- Version Badge -->
     <div class="version-badge">
-        <i class="fas fa-code-branch"></i> v6.0 Supabase
+        <i class="fas fa-code-branch" aria-hidden="true"></i> v6.0 Supabase
     </div>
 
     <!-- Supabase SDK -->
@@ -1241,31 +986,15 @@
         }
 
         // ========================================
-        // Tab Switching with Smooth Animation
+        // Tab Switching
         // ========================================
         document.querySelectorAll('.auth-tab').forEach(tab => {
             tab.addEventListener('click', () => {
                 const targetTab = tab.dataset.tab;
-                const currentPanel = document.querySelector('.form-panel.active');
-                const targetPanel = document.getElementById(targetTab + 'Panel');
-                
-                if (currentPanel === targetPanel) return;
-                
-                // Update tabs
                 document.querySelectorAll('.auth-tab').forEach(t => t.classList.remove('active'));
                 tab.classList.add('active');
-                
-                // Animate panel transition
-                if (currentPanel) {
-                    currentPanel.classList.add('slide-out');
-                    setTimeout(() => {
-                        currentPanel.classList.remove('active', 'slide-out');
-                        targetPanel.classList.add('active');
-                    }, 250);
-                } else {
-                    targetPanel.classList.add('active');
-                }
-                
+                document.querySelectorAll('.form-panel').forEach(p => p.classList.remove('active'));
+                document.getElementById(targetTab + 'Panel').classList.add('active');
                 hideAlert();
             });
         });
@@ -1279,9 +1008,13 @@
             if (input.type === 'password') {
                 input.type = 'text';
                 icon.className = 'fas fa-eye-slash';
+                button.setAttribute('aria-label', 'إخفاء كلمة المرور');
+                button.setAttribute('aria-pressed', 'true');
             } else {
                 input.type = 'password';
                 icon.className = 'fas fa-eye';
+                button.setAttribute('aria-label', 'إظهار كلمة المرور');
+                button.setAttribute('aria-pressed', 'false');
             }
         }
 
@@ -1387,6 +1120,11 @@
                 });
                 
                 if (error) throw error;
+                
+                // Log login activity
+                if (window.NFActivity) {
+                    NFActivity.log('LOGIN', { message: 'تسجيل دخول ناجح', email: email });
+                }
                 
                 showAlert('تم تسجيل الدخول بنجاح! جاري التحويل...', 'success');
                 forceRedirect();
@@ -1679,5 +1417,8 @@
             };
         });
     </script>
+    
+    <!-- Activity Log for tracking login -->
+    <script src="js/activity-warehouse.js"></script>
 </body>
 </html>

@@ -167,6 +167,11 @@ window.NFGeolocation = (function() {
             if (window.showNotification) {
                 showNotification('تم التقاط الموقع الجغرافي بنجاح', 'success');
             }
+
+            // Log activity
+            if (window.NFActivity) {
+                window.NFActivity.log('STATUS_CHANGE', { action: 'تقاط الموقع الجغرافي', lat: position.latitude, lng: position.longitude });
+            }
             
             return position;
         } catch (error) {
@@ -326,53 +331,197 @@ window.NFEvaluators = (function() {
         { id: 'eval3', name: 'خالد محمد', employeeId: 'EMP003', phone: '0551122334' }
     ];
     
-    // Get evaluators list
+    // Get evaluators list - Support Supabase, Firebase, and localStorage
     async function getEvaluators() {
-        if (!window.currentUser || !window.db) return DEFAULT_EVALUATORS;
+        console.log('Getting evaluators...');
         
-        try {
-            const snapshot = await db.collection('users')
-                .doc(currentUser.uid)
-                .collection('evaluators')
-                .orderBy('name')
-                .get();
-            
-            if (snapshot.empty) {
-                // Initialize with defaults
-                for (const evaluator of DEFAULT_EVALUATORS) {
-                    await db.collection('users')
-                        .doc(currentUser.uid)
-                        .collection('evaluators')
-                        .doc(evaluator.id)
-                        .set(evaluator);
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('evaluators')
+                    .select('*')
+                    .eq('user_id', window.currentUser.id)
+                    .order('name');
+                
+                if (error) {
+                    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                        console.warn('Evaluators table does not exist, using defaults + localStorage');
+                        return getEvaluatorsWithLocal(DEFAULT_EVALUATORS);
+                    }
+                    throw error;
                 }
-                return DEFAULT_EVALUATORS;
+                
+                if (!data || data.length === 0) {
+                    return getEvaluatorsWithLocal(DEFAULT_EVALUATORS);
+                }
+                
+                // Transform from snake_case to camelCase
+                const evaluators = data.map(e => ({
+                    id: e.id,
+                    name: e.name,
+                    employeeId: e.employee_id,
+                    phone: e.phone
+                }));
+                
+                return getEvaluatorsWithLocal(evaluators);
+            } catch (error) {
+                console.warn('Error fetching evaluators from Supabase:', error);
+                return getEvaluatorsWithLocal(DEFAULT_EVALUATORS);
             }
-            
-            return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
-        } catch (error) {
-            console.error('Error fetching evaluators:', error);
-            return DEFAULT_EVALUATORS;
+        }
+        
+        // Try Firebase
+        if (window.db && window.currentUser && window.currentUser.uid) {
+            try {
+                const snapshot = await window.db.collection('users')
+                    .doc(window.currentUser.uid)
+                    .collection('evaluators')
+                    .orderBy('name')
+                    .get();
+                
+                if (snapshot.empty) {
+                    // Initialize with defaults
+                    for (const evaluator of DEFAULT_EVALUATORS) {
+                        await window.db.collection('users')
+                            .doc(window.currentUser.uid)
+                            .collection('evaluators')
+                            .doc(evaluator.id)
+                            .set(evaluator);
+                    }
+                    return getEvaluatorsWithLocal(DEFAULT_EVALUATORS);
+                }
+                
+                const evaluators = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+                return getEvaluatorsWithLocal(evaluators);
+            } catch (error) {
+                console.warn('Error fetching evaluators from Firebase:', error);
+                return getEvaluatorsWithLocal(DEFAULT_EVALUATORS);
+            }
+        }
+        
+        // Fallback to defaults + localStorage
+        return getEvaluatorsWithLocal(DEFAULT_EVALUATORS);
+    }
+    
+    // Merge evaluators with localStorage custom evaluators
+    function getEvaluatorsWithLocal(dbEvaluators) {
+        try {
+            const storageKey = 'nf_custom_evaluators';
+            const localEvaluators = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            return [...dbEvaluators, ...localEvaluators];
+        } catch (e) {
+            return dbEvaluators;
         }
     }
     
-    // Add new evaluator
+    // Add new evaluator - Support Supabase, Firebase, and localStorage
     async function addEvaluator(evaluator) {
-        if (!window.currentUser || !window.db) return null;
+        console.log('Adding evaluator:', evaluator);
         
+        // Validate evaluator data
+        if (!evaluator || !evaluator.name || !evaluator.employeeId) {
+            console.error('Invalid evaluator data:', evaluator);
+            return { success: false, error: 'بيانات القائم بالتقييم غير مكتملة' };
+        }
+        
+        // Try Supabase first
+        if (window.supabaseClient && window.currentUser) {
+            try {
+                const { data, error } = await window.supabaseClient
+                    .from('evaluators')
+                    .insert({
+                        name: evaluator.name,
+                        employee_id: evaluator.employeeId,
+                        phone: evaluator.phone || null,
+                        user_id: window.currentUser.id,
+                        created_at: new Date().toISOString()
+                    })
+                    .select()
+                    .single();
+                
+                if (error) {
+                    // Table doesn't exist - use localStorage
+                    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                        console.warn('Evaluators table does not exist, using localStorage');
+                        return saveEvaluatorToLocal(evaluator);
+                    }
+                    // Duplicate key
+                    if (error.code === '23505' || error.message?.includes('duplicate')) {
+                        return { success: false, error: 'قائم بالتقييم بهذا الرقم الوظيفي موجود مسبقاً' };
+                    }
+                    throw error;
+                }
+                
+                // Log activity
+                if (window.NFActivity) {
+                    NFActivity.log('EVALUATOR_ADDED', { evaluatorName: evaluator.name });
+                }
+                
+                console.log('Evaluator added successfully to Supabase:', data.id);
+                return { success: true, id: data.id };
+            } catch (error) {
+                console.error('Error adding evaluator to Supabase:', error);
+                return saveEvaluatorToLocal(evaluator);
+            }
+        }
+        
+        // Try Firebase
+        if (window.db && window.currentUser && window.currentUser.uid) {
+            try {
+                const docRef = await window.db.collection('users')
+                    .doc(window.currentUser.uid)
+                    .collection('evaluators')
+                    .add({
+                        ...evaluator,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                
+                if (window.NFActivity) {
+                    NFActivity.log('EVALUATOR_ADDED', { evaluatorName: evaluator.name });
+                }
+                
+                console.log('Evaluator added successfully to Firebase:', docRef.id);
+                return { success: true, id: docRef.id };
+            } catch (error) {
+                console.error('Error adding evaluator to Firebase:', error);
+                return saveEvaluatorToLocal(evaluator);
+            }
+        }
+        
+        // Fallback to localStorage
+        return saveEvaluatorToLocal(evaluator);
+    }
+    
+    // Save evaluator to localStorage as fallback
+    function saveEvaluatorToLocal(evaluator) {
         try {
-            const docRef = await db.collection('users')
-                .doc(currentUser.uid)
-                .collection('evaluators')
-                .add({
-                    ...evaluator,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+            const storageKey = 'nf_custom_evaluators';
+            const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
             
-            return docRef.id;
+            // Check for duplicate by employeeId
+            if (existing.some(e => e.employeeId.toLowerCase() === evaluator.employeeId.toLowerCase())) {
+                return { success: false, error: 'قائم بالتقييم بهذا الرقم الوظيفي موجود مسبقاً' };
+            }
+            
+            const newEvaluator = {
+                ...evaluator,
+                id: 'local_' + Date.now(),
+                createdAt: new Date().toISOString()
+            };
+            
+            existing.push(newEvaluator);
+            localStorage.setItem(storageKey, JSON.stringify(existing));
+            
+            if (window.NFActivity) {
+                NFActivity.log('EVALUATOR_ADDED', { evaluatorName: evaluator.name, storage: 'local' });
+            }
+            
+            console.log('Evaluator saved to localStorage:', newEvaluator.id);
+            return { success: true, id: newEvaluator.id };
         } catch (error) {
-            console.error('Error adding evaluator:', error);
-            return null;
+            console.error('Error saving evaluator to localStorage:', error);
+            return { success: false, error: 'فشل في حفظ القائم بالتقييم: ' + error.message };
         }
     }
     
@@ -472,28 +621,94 @@ window.NFEvaluators = (function() {
         const employeeId = document.getElementById('evalEmployeeId')?.value.trim();
         const phone = document.getElementById('evalPhone')?.value.trim();
         
-        if (!name || !employeeId) {
-            if (window.showNotification) {
-                showNotification('يرجى ملء الحقول المطلوبة', 'warning');
-            }
+        if (!name) {
+            window.showNotification?.('يرجى إدخال اسم القائم بالتقييم', 'warning');
             return;
         }
         
-        const result = await addEvaluator({ name, employeeId, phone });
+        if (!employeeId) {
+            window.showNotification?.('يرجى إدخال الرقم الوظيفي', 'warning');
+            return;
+        }
         
-        if (result) {
-            if (window.showNotification) {
-                showNotification('تم إضافة القائم بالتقييم بنجاح', 'success');
+        // Disable button to prevent double-click
+        const saveBtn = document.querySelector('#evaluatorModal .btn-primary');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+        }
+        
+        try {
+            const result = await addEvaluator({ name, employeeId, phone });
+            
+            if (result.success) {
+                window.showNotification?.('تم إضافة القائم بالتقييم بنجاح', 'success');
+                document.getElementById('evaluatorModal')?.remove();
+                await populateEvaluatorSelector('evaluatorSelect');
+                // Refresh evaluators page if visible
+                if (document.getElementById('evaluatorsSection')) {
+                    await refreshEvaluators();
+                }
+            } else {
+                window.showNotification?.(result.error || 'حدث خطأ أثناء الإضافة', 'error');
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+                }
             }
-            document.getElementById('evaluatorModal')?.remove();
-            await populateEvaluatorSelector('evaluatorSelect');
-        } else {
-            if (window.showNotification) {
-                showNotification('حدث خطأ أثناء الإضافة', 'error');
+        } catch (error) {
+            console.error('Save evaluator error:', error);
+            window.showNotification?.('حدث خطأ غير متوقع: ' + error.message, 'error');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ';
             }
         }
     }
     
+    // Refresh evaluators list in UI
+    async function refreshEvaluators() {
+        const container = document.getElementById('evaluatorsSection');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        
+        try {
+            const evaluators = await getEvaluators();
+            container.innerHTML = `
+                <div class="nf-evaluators-page">
+                    <div class="nf-evaluators-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                        <h2><i class="fas fa-user-tie"></i> القائمين بالتقييم</h2>
+                        <button class="btn btn-primary" onclick="NFEvaluators.showAddEvaluatorModal()">
+                            <i class="fas fa-plus"></i> إضافة قائم جديد
+                        </button>
+                    </div>
+                    <div class="nf-evaluators-grid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px;">
+                        ${evaluators.map(e => `
+                            <div class="nf-evaluator-card" style="background: white; padding: 20px; border-radius: 12px; box-shadow: 0 2px 10px rgba(0,0,0,0.05);">
+                                <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 15px;">
+                                    <div style="width: 50px; height: 50px; background: #eef2ff; color: #667eea; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.2rem;">
+                                        ${e.name.charAt(0)}
+                                    </div>
+                                    <div>
+                                        <h3 style="margin: 0; font-size: 1.1rem;">${e.name}</h3>
+                                        <p style="margin: 0; font-size: 0.85rem; color: #64748b;">${e.employeeId}</p>
+                                    </div>
+                                </div>
+                                <div style="font-size: 0.9rem; color: #64748b;">
+                                    <p><i class="fas fa-phone"></i> ${e.phone || '-'}</p>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        } catch (error) {
+            console.error('Error refreshing evaluators:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل القائمين بالتقييم</div>';
+        }
+    }
+
     console.log('👤 NFEvaluators initialized');
     
     return {
@@ -503,7 +718,8 @@ window.NFEvaluators = (function() {
         createEvaluatorSelector,
         populateEvaluatorSelector,
         showAddEvaluatorModal,
-        saveEvaluator
+        saveEvaluator,
+        refreshEvaluators
     };
 })();
 

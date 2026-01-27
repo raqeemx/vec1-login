@@ -4,311 +4,198 @@
  * ========================================
  * 
  * نظام سجل النشاطات وإدارة المستودعات
+ * v3.0 - يستخدم localStorage + Supabase/Firebase
  * 
  * ⚠️ لا يعدل أي JavaScript موجود - إضافة فقط!
- * 
- * 🆕 تم تحسين النظام ليسجل جميع الأحداث:
- * - تسجيل الدخول/الخروج
- * - إضافة/تعديل/حذف/عرض المركبات
- * - تصدير/استيراد البيانات
- * - التنقل بين الأقسام
- * - تغييرات الفلاتر والبحث
- * - التقاط GPS
- * - رفع الصور
- * - إدارة المستودعات والمقيّمين
  */
 
 // ===== Activity Log System =====
 window.NFActivity = (function() {
     'use strict';
     
+    // Storage key for localStorage
+    const STORAGE_KEY = 'nf_activity_logs';
+    const MAX_LOCAL_ACTIVITIES = 500; // Keep last 500 activities locally
+    
     const ACTIVITY_TYPES = {
-        // === المصادقة ===
-        LOGIN: { icon: 'fa-sign-in-alt', color: 'success', label: 'تسجيل دخول', category: 'auth' },
-        LOGOUT: { icon: 'fa-sign-out-alt', color: 'warning', label: 'تسجيل خروج', category: 'auth' },
-        SESSION_START: { icon: 'fa-play-circle', color: 'success', label: 'بدء جلسة', category: 'auth' },
-        
-        // === المركبات ===
+        // Vehicle operations
         VEHICLE_ADDED: { icon: 'fa-plus-circle', color: 'success', label: 'إضافة مركبة', category: 'vehicles' },
         VEHICLE_UPDATED: { icon: 'fa-edit', color: 'warning', label: 'تعديل مركبة', category: 'vehicles' },
         VEHICLE_DELETED: { icon: 'fa-trash', color: 'danger', label: 'حذف مركبة', category: 'vehicles' },
         VEHICLE_VIEWED: { icon: 'fa-eye', color: 'info', label: 'عرض مركبة', category: 'vehicles' },
-        VEHICLE_SEARCH: { icon: 'fa-search', color: 'info', label: 'بحث عن مركبة', category: 'vehicles' },
         
-        // === التصدير والاستيراد ===
+        // Export/Import operations
         EXPORT_EXCEL: { icon: 'fa-file-excel', color: 'success', label: 'تصدير Excel', category: 'export' },
         EXPORT_JSON: { icon: 'fa-file-code', color: 'info', label: 'تصدير JSON', category: 'export' },
         EXPORT_IMAGES: { icon: 'fa-images', color: 'primary', label: 'تصدير روابط الصور', category: 'export' },
-        IMPORT_DATA: { icon: 'fa-file-import', color: 'primary', label: 'استيراد بيانات', category: 'import' },
+        IMPORT_DATA: { icon: 'fa-file-import', color: 'primary', label: 'استيراد بيانات', category: 'export' },
         
-        // === المستودعات ===
-        WAREHOUSE_TRANSFER: { icon: 'fa-warehouse', color: 'warning', label: 'نقل للمستودع', category: 'warehouse' },
+        // Warehouse operations
+        WAREHOUSE_TRANSFER: { icon: 'fa-exchange-alt', color: 'warning', label: 'نقل للمستودع', category: 'warehouse' },
         WAREHOUSE_ADDED: { icon: 'fa-plus', color: 'success', label: 'إضافة مستودع', category: 'warehouse' },
         WAREHOUSE_DELETED: { icon: 'fa-trash', color: 'danger', label: 'حذف مستودع', category: 'warehouse' },
-        WAREHOUSE_VIEWED: { icon: 'fa-eye', color: 'info', label: 'عرض المستودعات', category: 'warehouse' },
         
-        // === الحالة والتقييم ===
-        STATUS_CHANGE: { icon: 'fa-cog', color: 'info', label: 'تغيير الحالة', category: 'status' },
-        RATING_CHANGE: { icon: 'fa-star', color: 'warning', label: 'تغيير التقييم', category: 'status' },
+        // Evaluator operations
+        EVALUATOR_ADDED: { icon: 'fa-user-plus', color: 'success', label: 'إضافة قائم بالتقييم', category: 'evaluators' },
+        EVALUATOR_DELETED: { icon: 'fa-user-minus', color: 'danger', label: 'حذف قائم بالتقييم', category: 'evaluators' },
         
-        // === المقيّمين ===
-        EVALUATOR_ADDED: { icon: 'fa-user-plus', color: 'success', label: 'إضافة مقيّم', category: 'evaluators' },
-        EVALUATOR_DELETED: { icon: 'fa-user-minus', color: 'danger', label: 'حذف مقيّم', category: 'evaluators' },
-        EVALUATOR_ASSIGNED: { icon: 'fa-user-tie', color: 'info', label: 'تعيين مقيّم', category: 'evaluators' },
+        // Status changes
+        STATUS_CHANGE: { icon: 'fa-cog', color: 'info', label: 'تغيير الحالة', category: 'system' },
         
-        // === الصور ===
-        IMAGE_UPLOADED: { icon: 'fa-cloud-upload-alt', color: 'success', label: 'رفع صورة', category: 'images' },
-        IMAGE_DELETED: { icon: 'fa-trash-alt', color: 'danger', label: 'حذف صورة', category: 'images' },
-        IMAGE_VIEWED: { icon: 'fa-image', color: 'info', label: 'عرض صورة', category: 'images' },
-        ALBUM_VIEWED: { icon: 'fa-images', color: 'info', label: 'عرض الألبوم', category: 'images' },
+        // Auth operations
+        LOGIN: { icon: 'fa-sign-in-alt', color: 'success', label: 'تسجيل دخول', category: 'auth' },
+        LOGOUT: { icon: 'fa-sign-out-alt', color: 'warning', label: 'تسجيل خروج', category: 'auth' },
         
-        // === GPS والموقع ===
-        GPS_CAPTURED: { icon: 'fa-map-marker-alt', color: 'success', label: 'التقاط GPS', category: 'gps' },
-        GPS_CLEARED: { icon: 'fa-map-marker-alt', color: 'warning', label: 'مسح GPS', category: 'gps' },
-        MAP_OPENED: { icon: 'fa-map', color: 'info', label: 'فتح الخريطة', category: 'gps' },
+        // Page navigation
+        PAGE_VIEW: { icon: 'fa-eye', color: 'secondary', label: 'عرض صفحة', category: 'navigation' },
+        SECTION_OPENED: { icon: 'fa-folder-open', color: 'secondary', label: 'فتح قسم', category: 'navigation' },
         
-        // === التنقل ===
-        PAGE_VIEW: { icon: 'fa-desktop', color: 'info', label: 'عرض صفحة', category: 'navigation' },
-        SECTION_CHANGE: { icon: 'fa-exchange-alt', color: 'info', label: 'تغيير القسم', category: 'navigation' },
-        MODAL_OPENED: { icon: 'fa-window-maximize', color: 'info', label: 'فتح نافذة', category: 'navigation' },
-        MODAL_CLOSED: { icon: 'fa-window-minimize', color: 'info', label: 'إغلاق نافذة', category: 'navigation' },
+        // Search and filter
+        SEARCH: { icon: 'fa-search', color: 'info', label: 'بحث', category: 'search' },
+        FILTER_APPLIED: { icon: 'fa-filter', color: 'info', label: 'تطبيق فلتر', category: 'search' },
         
-        // === الفلاتر والبحث ===
-        FILTER_APPLIED: { icon: 'fa-filter', color: 'info', label: 'تطبيق فلتر', category: 'filters' },
-        FILTER_CLEARED: { icon: 'fa-times', color: 'warning', label: 'مسح الفلاتر', category: 'filters' },
-        SORT_APPLIED: { icon: 'fa-sort', color: 'info', label: 'ترتيب البيانات', category: 'filters' },
+        // Photo operations
+        PHOTO_ADDED: { icon: 'fa-camera', color: 'success', label: 'إضافة صورة', category: 'photos' },
+        PHOTO_DELETED: { icon: 'fa-trash', color: 'danger', label: 'حذف صورة', category: 'photos' },
+        ALBUM_VIEWED: { icon: 'fa-images', color: 'info', label: 'عرض ألبوم الصور', category: 'photos' },
         
-        // === الإعدادات ===
-        THEME_CHANGED: { icon: 'fa-moon', color: 'info', label: 'تغيير المظهر', category: 'settings' },
-        SETTINGS_UPDATED: { icon: 'fa-cog', color: 'info', label: 'تحديث الإعدادات', category: 'settings' },
+        // Settings
+        SETTINGS_CHANGED: { icon: 'fa-cog', color: 'warning', label: 'تغيير الإعدادات', category: 'system' },
+        DARK_MODE_TOGGLE: { icon: 'fa-moon', color: 'secondary', label: 'تبديل الوضع المظلم', category: 'system' },
         
-        // === الأخطاء ===
-        ERROR_OCCURRED: { icon: 'fa-exclamation-triangle', color: 'danger', label: 'حدث خطأ', category: 'errors' },
-        NETWORK_ERROR: { icon: 'fa-wifi', color: 'danger', label: 'خطأ الاتصال', category: 'errors' },
-        
-        // === عام ===
-        DATA_LOADED: { icon: 'fa-database', color: 'success', label: 'تحميل البيانات', category: 'general' },
-        DATA_SYNCED: { icon: 'fa-sync', color: 'success', label: 'مزامنة البيانات', category: 'general' },
-        BULK_DELETE: { icon: 'fa-trash', color: 'danger', label: 'حذف جماعي', category: 'general' }
+        // Errors
+        ERROR: { icon: 'fa-exclamation-triangle', color: 'danger', label: 'خطأ', category: 'system' }
     };
     
-    // إعدادات تتبع النشاطات
-    const CONFIG = {
-        enabled: true,
-        logToConsole: true,
-        trackNavigation: true,
-        trackFilters: true,
-        maxLogsToKeep: 500,
-        batchSize: 10,
-        batchDelay: 5000 // 5 ثوان
+    // Category labels for filtering
+    const CATEGORIES = {
+        vehicles: 'المركبات',
+        export: 'التصدير والاستيراد',
+        warehouse: 'المستودعات',
+        evaluators: 'القائمين بالتقييم',
+        auth: 'تسجيل الدخول',
+        navigation: 'التنقل',
+        search: 'البحث والفلترة',
+        photos: 'الصور',
+        system: 'النظام'
     };
     
-    // قائمة انتظار للتسجيل الجماعي
-    let pendingLogs = [];
-    let batchTimeout = null;
-    
-    // Log activity - Support both Firebase and Supabase
-    async function logActivity(type, details = {}, immediate = false) {
-        // تحقق من تفعيل التتبع
-        if (!CONFIG.enabled) return;
-        
-        // إضافة معلومات إضافية للنشاط
-        const typeInfo = ACTIVITY_TYPES[type] || { icon: 'fa-circle', color: 'secondary', label: type, category: 'general' };
-        const enrichedDetails = {
-            ...details,
-            _timestamp: new Date().toISOString(),
-            _userAgent: navigator.userAgent.substring(0, 100),
-            _screenSize: `${window.innerWidth}x${window.innerHeight}`,
-            _isMobile: window.innerWidth <= 768,
-            _url: window.location.href,
-            _category: typeInfo.category
-        };
-        
-        // طباعة في Console إذا كان مفعّل
-        if (CONFIG.logToConsole) {
-            console.log(`📋 [${typeInfo.category}] ${typeInfo.label}:`, enrichedDetails);
-        }
-        
-        // إضافة إلى قائمة الانتظار للتسجيل الجماعي
-        if (!immediate && CONFIG.batchSize > 1) {
-            pendingLogs.push({ type, details: enrichedDetails });
-            
-            // إذا وصلنا للحد الأقصى، نرسل فوراً
-            if (pendingLogs.length >= CONFIG.batchSize) {
-                await flushPendingLogs();
-            } else if (!batchTimeout) {
-                // جدولة الإرسال بعد فترة
-                batchTimeout = setTimeout(() => flushPendingLogs(), CONFIG.batchDelay);
-            }
-            return;
-        }
-        
-        // التسجيل الفوري
-        await saveActivityToDatabase(type, enrichedDetails);
-    }
-    
-    // حفظ النشاط في قاعدة البيانات
-    async function saveActivityToDatabase(type, details) {
-        // Try Supabase first - use global getSupabaseClientAsync if available
-        let client = window.supabaseClient;
-        if (!client && typeof window.getSupabaseClientAsync === 'function') {
-            try {
-                client = await window.getSupabaseClientAsync();
-            } catch (e) {
-                console.warn('Could not get Supabase client:', e);
-            }
-        }
-        
-        if (client && window.currentUser) {
-            try {
-                const activity = {
-                    activity_type: type,
-                    details: details,
-                    user_id: window.currentUser.id,
-                    created_at: new Date().toISOString()
-                };
-                
-                const { error } = await client
-                    .from('activity_logs')
-                    .insert(activity);
-                
-                if (error) {
-                    // Check if table doesn't exist - silently fail
-                    if (error.code === '42P01' || error.message?.includes('does not exist')) {
-                        // Store locally instead
-                        storeLocalActivity(type, details);
-                        return;
-                    }
-                    throw error;
-                }
-                    
-                return;
-            } catch (error) {
-                console.warn('Error logging activity to Supabase:', error.message || error);
-                storeLocalActivity(type, details);
-            }
-        }
-        
-        // Fallback to Firebase
-        if (!window.currentUser || !window.db) {
-            storeLocalActivity(type, details);
-            return;
-        }
-        
-        try {
-            const activity = {
-                type: type,
-                details: details,
-                userId: window.currentUser.uid,
-                userName: window.currentUser.displayName || window.currentUser.email,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp(),
-                userAgent: navigator.userAgent.substring(0, 200)
-            };
-            
-            await window.db.collection('users')
-                .doc(window.currentUser.uid)
-                .collection('activities')
-                .add(activity);
-        } catch (error) {
-            console.error('Error logging activity:', error);
-            storeLocalActivity(type, details);
-        }
-    }
-    
-    // إرسال النشاطات المعلقة
-    async function flushPendingLogs() {
-        if (batchTimeout) {
-            clearTimeout(batchTimeout);
-            batchTimeout = null;
-        }
-        
-        if (pendingLogs.length === 0) return;
-        
-        const logsToSend = [...pendingLogs];
-        pendingLogs = [];
-        
-        // Try to batch insert
-        let client = window.supabaseClient;
-        if (!client && typeof window.getSupabaseClientAsync === 'function') {
-            try {
-                client = await window.getSupabaseClientAsync();
-            } catch (e) {
-                console.warn('Could not get Supabase client for batch:', e);
-            }
-        }
-        
-        if (client && window.currentUser) {
-            try {
-                const activities = logsToSend.map(log => ({
-                    activity_type: log.type,
-                    details: log.details,
-                    user_id: window.currentUser.id,
-                    created_at: log.details._timestamp || new Date().toISOString()
-                }));
-                
-                const { error } = await client
-                    .from('activity_logs')
-                    .insert(activities);
-                
-                if (error) {
-                    // Store locally if database fails
-                    logsToSend.forEach(log => storeLocalActivity(log.type, log.details));
-                }
-            } catch (error) {
-                console.warn('Batch insert failed:', error);
-                logsToSend.forEach(log => storeLocalActivity(log.type, log.details));
-            }
-        } else {
-            // Store locally
-            logsToSend.forEach(log => storeLocalActivity(log.type, log.details));
-        }
-    }
-    
-    // تخزين النشاط محلياً
-    function storeLocalActivity(type, details) {
-        try {
-            const localLogs = JSON.parse(localStorage.getItem('nf_activity_logs') || '[]');
-            localLogs.push({
-                id: `local-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-                type,
-                details,
-                timestamp: new Date().toISOString()
-            });
-            
-            // الاحتفاظ بآخر CONFIG.maxLogsToKeep سجل فقط
-            if (localLogs.length > CONFIG.maxLogsToKeep) {
-                localLogs.splice(0, localLogs.length - CONFIG.maxLogsToKeep);
-            }
-            
-            localStorage.setItem('nf_activity_logs', JSON.stringify(localLogs));
-        } catch (e) {
-            console.warn('Could not store local activity:', e);
-        }
-    }
-    
-    // جلب النشاطات المحلية
+    // Get activities from localStorage
     function getLocalActivities() {
         try {
-            return JSON.parse(localStorage.getItem('nf_activity_logs') || '[]');
+            const stored = localStorage.getItem(STORAGE_KEY);
+            return stored ? JSON.parse(stored) : [];
         } catch (e) {
+            console.warn('Error reading local activities:', e);
             return [];
         }
     }
     
-    // Get recent activities - Support both Firebase, Supabase, and Local Storage
-    async function getActivities(limit = 50, filterCategory = null) {
-        let activities = [];
+    // Save activities to localStorage
+    function saveLocalActivities(activities) {
+        try {
+            // Keep only the last MAX_LOCAL_ACTIVITIES
+            const trimmed = activities.slice(0, MAX_LOCAL_ACTIVITIES);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(trimmed));
+        } catch (e) {
+            console.warn('Error saving local activities:', e);
+        }
+    }
+    
+    // Log activity - Saves to localStorage first, then tries remote
+    async function logActivity(type, details = {}) {
+        // Ensure we have a type
+        if (!type) {
+            console.error('Activity type is required');
+            return;
+        }
         
-        // Try Supabase first - use global getSupabaseClientAsync if available
+        const typeInfo = ACTIVITY_TYPES[type];
+        if (!typeInfo) {
+            console.warn('Unknown activity type:', type);
+        }
+        
+        // Create activity object
+        const activity = {
+            id: 'act_' + Date.now() + '_' + Math.random().toString(36).substr(2, 9),
+            type: type,
+            details: details,
+            timestamp: new Date().toISOString(),
+            userAgent: navigator.userAgent.substring(0, 100)
+        };
+        
+        // Always save to localStorage first (for reliability)
+        const localActivities = getLocalActivities();
+        localActivities.unshift(activity);
+        saveLocalActivities(localActivities);
+        
+        console.log('📋 Activity logged locally:', type, details);
+        
+        // Try to save to Supabase (non-blocking)
+        saveToRemote(activity).catch(err => {
+            console.warn('Could not save activity to remote:', err.message);
+        });
+        
+        return activity;
+    }
+    
+    // Save activity to remote database (Supabase/Firebase)
+    async function saveToRemote(activity) {
+        // Try Supabase first
         let client = window.supabaseClient;
-        if (!client && typeof window.getSupabaseClientAsync === 'function') {
+        const user = window.currentUser;
+        
+        if (client && user) {
             try {
-                client = await window.getSupabaseClientAsync();
-            } catch (e) {
-                console.warn('Could not get Supabase client:', e);
+                const { error } = await client
+                    .from('activity_logs')
+                    .insert({
+                        activity_type: activity.type,
+                        details: activity.details,
+                        user_id: user.id,
+                        created_at: activity.timestamp
+                    });
+                
+                if (error) {
+                    // Table doesn't exist - that's okay, we have localStorage
+                    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                        return; // Silently ignore
+                    }
+                    throw error;
+                }
+                
+                console.log('Activity saved to Supabase:', activity.type);
+                return;
+            } catch (error) {
+                // Silently fail - localStorage is our backup
             }
         }
         
+        // Try Firebase
+        if (window.db && window.currentUser && window.currentUser.uid) {
+            try {
+                await window.db.collection('users')
+                    .doc(window.currentUser.uid)
+                    .collection('activities')
+                    .add({
+                        type: activity.type,
+                        details: activity.details,
+                        timestamp: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                console.log('Activity saved to Firebase:', activity.type);
+            } catch (error) {
+                // Silently fail
+            }
+        }
+    }
+    
+    // Get recent activities (combines local and remote)
+    async function getActivities(limit = 100) {
+        // Start with local activities
+        let activities = getLocalActivities();
+        
+        // Try to get from Supabase
+        let client = window.supabaseClient;
         if (client && window.currentUser) {
             try {
                 const { data, error } = await client
@@ -318,94 +205,48 @@ window.NFActivity = (function() {
                     .order('created_at', { ascending: false })
                     .limit(limit);
                 
-                if (error) {
-                    // Check if table doesn't exist
-                    if (error.code === '42P01' || error.message?.includes('does not exist')) {
-                        console.warn('Activity logs table does not exist - using local storage');
-                    } else {
-                        throw error;
-                    }
-                } else {
-                    // Transform data to match expected format
-                    activities = (data || []).map(item => ({
+                if (!error && data && data.length > 0) {
+                    // Merge remote activities with local ones
+                    const remoteActivities = data.map(item => ({
                         id: item.id,
                         type: item.activity_type,
                         details: item.details || {},
-                        timestamp: item.created_at
+                        timestamp: item.created_at,
+                        source: 'remote'
                     }));
+                    
+                    // Combine and sort by timestamp
+                    activities = [...activities, ...remoteActivities];
+                    activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
+                    
+                    // Remove duplicates
+                    const seen = new Set();
+                    activities = activities.filter(a => {
+                        const key = a.type + a.timestamp;
+                        if (seen.has(key)) return false;
+                        seen.add(key);
+                        return true;
+                    });
                 }
             } catch (error) {
-                console.warn('Error fetching activities from Supabase:', error.message || error);
+                console.warn('Could not fetch remote activities:', error.message);
             }
         }
         
-        // Fallback to Firebase
-        if (activities.length === 0 && window.db && window.currentUser) {
-            try {
-                const snapshot = await window.db.collection('users')
-                    .doc(window.currentUser.uid)
-                    .collection('activities')
-                    .orderBy('timestamp', 'desc')
-                    .limit(limit)
-                    .get();
-                
-                activities = snapshot.docs.map(doc => ({
-                    id: doc.id,
-                    ...doc.data()
-                }));
-            } catch (error) {
-                console.error('Error fetching activities from Firebase:', error);
-            }
-        }
-        
-        // Include local activities
-        const localActivities = getLocalActivities();
-        if (localActivities.length > 0) {
-            activities = [...activities, ...localActivities];
-            // Sort by timestamp and remove duplicates
-            activities.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp));
-        }
-        
-        // Apply category filter if specified
-        if (filterCategory && filterCategory !== 'all') {
-            activities = activities.filter(a => {
-                const typeInfo = ACTIVITY_TYPES[a.type];
-                return typeInfo && typeInfo.category === filterCategory;
-            });
-        }
-        
-        // If still no activities, return mock data for demo
-        if (activities.length === 0) {
-            return generateMockActivities();
-        }
-        
-        // Limit results
+        // Return limited activities
         return activities.slice(0, limit);
     }
     
-    // Generate mock activities for demo purposes
-    function generateMockActivities() {
-        const now = new Date();
-        return [
-            {
-                id: 'demo-1',
-                type: 'LOGIN',
-                details: { message: 'تسجيل دخول ناجح' },
-                timestamp: new Date(now - 5 * 60000).toISOString()
-            },
-            {
-                id: 'demo-2',
-                type: 'VEHICLE_ADDED',
-                details: { vehicleName: 'تويوتا كامري 2023', contractNo: 'CNT-001' },
-                timestamp: new Date(now - 30 * 60000).toISOString()
-            },
-            {
-                id: 'demo-3',
-                type: 'EXPORT_EXCEL',
-                details: { count: 5, message: 'تم تصدير 5 مركبات' },
-                timestamp: new Date(now - 60 * 60000).toISOString()
-            }
-        ];
+    // Clear all local activities
+    function clearActivities() {
+        try {
+            localStorage.removeItem(STORAGE_KEY);
+            console.log('Local activities cleared');
+            return true;
+        } catch (e) {
+            console.error('Error clearing activities:', e);
+            return false;
+        }
     }
     
     // Format activity for display
@@ -413,7 +254,8 @@ window.NFActivity = (function() {
         const typeInfo = ACTIVITY_TYPES[activity.type] || { 
             icon: 'fa-circle', 
             color: 'secondary', 
-            label: activity.type 
+            label: activity.type,
+            category: 'system'
         };
         
         const timestamp = activity.timestamp?.toDate ? 
@@ -443,34 +285,15 @@ window.NFActivity = (function() {
         return date.toLocaleDateString('ar-SA');
     }
     
-    // الفئات المتاحة للفلترة
-    const ACTIVITY_CATEGORIES = {
-        all: { label: 'جميع الأنشطة', icon: 'fa-list' },
-        auth: { label: 'المصادقة', icon: 'fa-sign-in-alt' },
-        vehicles: { label: 'المركبات', icon: 'fa-car' },
-        export: { label: 'التصدير', icon: 'fa-file-export' },
-        import: { label: 'الاستيراد', icon: 'fa-file-import' },
-        warehouse: { label: 'المستودعات', icon: 'fa-warehouse' },
-        evaluators: { label: 'المقيّمين', icon: 'fa-user-tie' },
-        images: { label: 'الصور', icon: 'fa-images' },
-        gps: { label: 'الموقع', icon: 'fa-map-marker-alt' },
-        navigation: { label: 'التنقل', icon: 'fa-route' },
-        filters: { label: 'الفلاتر', icon: 'fa-filter' },
-        settings: { label: 'الإعدادات', icon: 'fa-cog' },
-        errors: { label: 'الأخطاء', icon: 'fa-exclamation-triangle' },
-        general: { label: 'عام', icon: 'fa-circle' }
-    };
-
     // Create activities page content
     function createActivitiesPageHTML(activities) {
         const formattedActivities = activities.map(formatActivity);
         
-        // إحصائيات حسب الفئات
-        const categoryStats = {};
-        activities.forEach(a => {
-            const typeInfo = ACTIVITY_TYPES[a.type] || { category: 'general' };
-            const cat = typeInfo.category || 'general';
-            categoryStats[cat] = (categoryStats[cat] || 0) + 1;
+        // Count by category
+        const categoryCounts = {};
+        formattedActivities.forEach(a => {
+            const cat = a.typeInfo.category || 'system';
+            categoryCounts[cat] = (categoryCounts[cat] || 0) + 1;
         });
         
         return `
@@ -482,58 +305,44 @@ window.NFActivity = (function() {
                     </div>
                 </div>
                 
-                <!-- إحصائيات سريعة -->
-                <div class="nf-activity-quick-stats">
-                    ${Object.entries(categoryStats).slice(0, 6).map(([cat, count]) => {
-                        const catInfo = ACTIVITY_CATEGORIES[cat] || ACTIVITY_CATEGORIES.general;
-                        return `
-                            <div class="nf-quick-stat" onclick="NFActivity.filterByCategory('${cat}')">
-                                <i class="fas ${catInfo.icon}"></i>
-                                <span class="stat-count">${count}</span>
-                                <span class="stat-label">${catInfo.label}</span>
-                            </div>
-                        `;
-                    }).join('')}
-                </div>
-                
-                <div class="nf-activities-filters">
-                    <select id="activityCategoryFilter" class="nf-filter-select" onchange="NFActivity.filterByCategory(this.value)">
-                        ${Object.entries(ACTIVITY_CATEGORIES).map(([key, val]) => 
-                            `<option value="${key}"><i class="fas ${val.icon}"></i> ${val.label}</option>`
+                <div class="nf-activities-filters" style="display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 20px;">
+                    <select id="activityCategoryFilter" class="nf-filter-select" onchange="NFActivity.filterByCategory(this.value)" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                        <option value="">كل التصنيفات</option>
+                        ${Object.entries(CATEGORIES).map(([key, label]) => 
+                            `<option value="${key}">${label} (${categoryCounts[key] || 0})</option>`
                         ).join('')}
                     </select>
-                    <select id="activityTypeFilter" class="nf-filter-select" onchange="NFActivity.filterActivities()">
-                        <option value="">جميع أنواع الأنشطة</option>
+                    <select id="activityTypeFilter" class="nf-filter-select" onchange="NFActivity.filterActivities()" style="padding: 10px; border-radius: 8px; border: 1px solid #ddd;">
+                        <option value="">كل الأنشطة</option>
                         ${Object.entries(ACTIVITY_TYPES).map(([key, val]) => 
                             `<option value="${key}">${val.label}</option>`
                         ).join('')}
                     </select>
-                    <button class="btn btn-outline" onclick="NFActivity.refreshActivities()">
+                    <button class="btn btn-outline" onclick="NFActivity.refreshActivities()" style="padding: 10px 15px; border-radius: 8px;">
                         <i class="fas fa-sync-alt"></i> تحديث
                     </button>
-                    <button class="btn btn-outline btn-danger-outline" onclick="NFActivity.clearLocalLogs()" title="مسح السجلات المحلية">
-                        <i class="fas fa-trash"></i>
+                    <button class="btn btn-outline" onclick="NFActivity.confirmClear()" style="padding: 10px 15px; border-radius: 8px; color: #dc3545; border-color: #dc3545;">
+                        <i class="fas fa-trash"></i> مسح السجل
                     </button>
                 </div>
                 
                 <div class="nf-activities-list" id="activitiesList">
-                    ${formattedActivities.length > 0 ? formattedActivities.map(a => `
-                        <div class="nf-activity-item" data-type="${a.type}" data-category="${a.typeInfo.category || 'general'}">
+                    ${formattedActivities.length > 0 ? formattedActivities.map((a, index) => `
+                        <div class="nf-activity-item" data-type="${a.type}" data-category="${a.typeInfo.category}" style="animation-delay: ${index * 0.05}s;">
                             <div class="nf-activity-icon ${a.typeInfo.color}">
                                 <i class="fas ${a.typeInfo.icon}"></i>
                             </div>
                             <div class="nf-activity-content">
-                                <div class="nf-activity-header-row">
-                                    <div class="nf-activity-title">${a.typeInfo.label}</div>
-                                    <span class="nf-activity-category-badge">${ACTIVITY_CATEGORIES[a.typeInfo.category]?.label || 'عام'}</span>
-                                </div>
+                                <div class="nf-activity-title">${a.typeInfo.label}</div>
                                 <div class="nf-activity-details">
                                     ${formatDetails(a.details)}
                                 </div>
                                 <div class="nf-activity-meta">
                                     <span><i class="fas fa-clock"></i> ${a.timeAgo}</span>
                                     <span class="nf-activity-date">${a.formattedDate}</span>
-                                    ${a.details?._isMobile ? '<span class="nf-device-badge"><i class="fas fa-mobile-alt"></i> هاتف</span>' : ''}
+                                    <span class="nf-activity-category" style="background: #f0f0f0; padding: 2px 8px; border-radius: 10px; font-size: 0.75rem;">
+                                        ${CATEGORIES[a.typeInfo.category] || 'عام'}
+                                    </span>
                                 </div>
                             </div>
                         </div>
@@ -560,124 +369,128 @@ window.NFActivity = (function() {
         if (details.warehouse) parts.push(`مستودع: ${details.warehouse}`);
         if (details.oldStatus) parts.push(`من: ${details.oldStatus}`);
         if (details.newStatus) parts.push(`إلى: ${details.newStatus}`);
+        if (details.message) parts.push(details.message);
+        if (details.section) parts.push(`قسم: ${details.section}`);
+        if (details.query) parts.push(`بحث: "${details.query}"`);
+        if (details.evaluatorName) parts.push(`القائم: ${details.evaluatorName}`);
+        if (details.error) parts.push(`<span style="color: red;">${details.error}</span>`);
         
         return parts.join(' • ');
     }
     
-    // Filter activities in UI
+    // Filter activities by type
     function filterActivities() {
-        const filter = document.getElementById('activityTypeFilter')?.value;
+        const typeFilter = document.getElementById('activityTypeFilter')?.value;
         const items = document.querySelectorAll('.nf-activity-item');
+        let visibleCount = 0;
         
         items.forEach(item => {
-            if (!filter || item.dataset.type === filter) {
+            if (!typeFilter || item.dataset.type === typeFilter) {
                 item.style.display = 'flex';
+                visibleCount++;
             } else {
                 item.style.display = 'none';
             }
         });
+        
+        updateVisibleCount(visibleCount);
     }
     
-    // Refresh activities
-    async function refreshActivities() {
-        const container = document.getElementById('activitiesSection');
-        if (!container) return;
+    // Filter activities by category
+    function filterByCategory(category) {
+        const items = document.querySelectorAll('.nf-activity-item');
+        let visibleCount = 0;
         
-        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        // Reset type filter
+        const typeFilter = document.getElementById('activityTypeFilter');
+        if (typeFilter) typeFilter.value = '';
         
-        const activities = await getActivities();
-        container.innerHTML = createActivitiesPageHTML(activities);
+        items.forEach(item => {
+            if (!category || item.dataset.category === category) {
+                item.style.display = 'flex';
+                visibleCount++;
+            } else {
+                item.style.display = 'none';
+            }
+        });
+        
+        updateVisibleCount(visibleCount);
     }
     
-    // فلترة حسب الفئة
-    async function filterByCategory(category) {
-        const container = document.getElementById('activitiesSection');
-        if (!container) return;
-        
-        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
-        
-        const activities = await getActivities(100, category === 'all' ? null : category);
-        container.innerHTML = createActivitiesPageHTML(activities);
-        
-        // تحديد القيمة في القائمة المنسدلة
-        const categoryFilter = document.getElementById('activityCategoryFilter');
-        if (categoryFilter) categoryFilter.value = category;
+    // Update visible count in header
+    function updateVisibleCount(count) {
+        const statsEl = document.querySelector('.nf-activities-stats');
+        if (statsEl) {
+            statsEl.innerHTML = `<span><strong>${count}</strong> نشاط</span>`;
+        }
     }
     
-    // مسح السجلات المحلية
-    function clearLocalLogs() {
-        if (confirm('هل أنت متأكد من مسح سجل النشاطات المحلي؟')) {
-            localStorage.removeItem('nf_activity_logs');
+    // Confirm clear activities
+    function confirmClear() {
+        if (confirm('هل أنت متأكد من مسح سجل النشاطات؟ لا يمكن التراجع عن هذا الإجراء.')) {
+            clearActivities();
             refreshActivities();
             if (window.showNotification) {
-                showNotification('تم مسح السجلات المحلية', 'info');
+                showNotification('تم مسح سجل النشاطات بنجاح', 'success');
             }
         }
     }
     
-    // إعداد التتبع التلقائي للأحداث
-    function setupAutoTracking() {
-        // تتبع تغيير الصفحة (SPA navigation)
-        if (CONFIG.trackNavigation) {
-            // تتبع النقرات على عناصر القائمة
-            document.addEventListener('click', function(e) {
-                const menuItem = e.target.closest('.menu-item');
-                if (menuItem) {
-                    const sectionName = menuItem.textContent.trim();
-                    logActivity('SECTION_CHANGE', { section: sectionName });
-                }
-            });
+    // Refresh activities
+    async function refreshActivities() {
+        console.log('Refreshing activities...');
+        const container = document.getElementById('activitiesSection');
+        if (!container) {
+            console.error('Activities container #activitiesSection not found');
+            return;
         }
         
-        // تتبع أخطاء JavaScript
-        window.addEventListener('error', function(e) {
-            logActivity('ERROR_OCCURRED', {
-                message: e.message,
-                filename: e.filename,
-                lineno: e.lineno
-            }, true);
-        });
+        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
         
-        // تتبع انقطاع الاتصال
-        window.addEventListener('offline', function() {
-            logActivity('NETWORK_ERROR', { status: 'offline' }, true);
-        });
-        
-        window.addEventListener('online', function() {
-            logActivity('DATA_SYNCED', { status: 'online' }, true);
-        });
-        
-        // تتبع إغلاق الصفحة
-        window.addEventListener('beforeunload', function() {
-            flushPendingLogs();
-        });
-    }
-    
-    // تشغيل التتبع التلقائي
-    if (typeof document !== 'undefined') {
-        if (document.readyState === 'loading') {
-            document.addEventListener('DOMContentLoaded', setupAutoTracking);
-        } else {
-            setupAutoTracking();
+        try {
+            const activities = await getActivities();
+            console.log('Activities fetched:', activities.length);
+            container.innerHTML = createActivitiesPageHTML(activities);
+        } catch (error) {
+            console.error('Failed to refresh activities:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل النشاطات</div>';
         }
     }
     
-    console.log('📋 NFActivity initialized - Enhanced tracking enabled');
+    // Refresh warehouses
+    async function refreshWarehouses() {
+        const container = document.getElementById('warehouseSection');
+        if (!container) return;
+        
+        container.innerHTML = '<div class="nf-loading"><i class="fas fa-spinner fa-spin"></i> جاري التحميل...</div>';
+        
+        try {
+            const warehouses = await getWarehouses();
+            // We need vehicle stats for the warehouse page
+            const stats = {}; 
+            // Mock stats if needed
+            container.innerHTML = createWarehousePageHTML(warehouses, stats);
+        } catch (error) {
+            console.error('Error refreshing warehouses:', error);
+            container.innerHTML = '<div class="nf-error">فشل تحميل المستودعات</div>';
+        }
+    }
+    
+    console.log('📋 NFActivity v3.0 initialized - localStorage + Remote sync enabled');
     
     return {
         TYPES: ACTIVITY_TYPES,
-        CATEGORIES: ACTIVITY_CATEGORIES,
-        CONFIG: CONFIG,
+        CATEGORIES: CATEGORIES,
         log: logActivity,
         getAll: getActivities,
-        getLocal: getLocalActivities,
+        clear: clearActivities,
         format: formatActivity,
         createPageHTML: createActivitiesPageHTML,
         filterActivities,
         filterByCategory,
+        confirmClear,
         refreshActivities,
-        clearLocalLogs,
-        flushLogs: flushPendingLogs
+        refreshWarehouses
     };
 })();
 
@@ -693,6 +506,8 @@ window.NFWarehouse = (function() {
     
     // Get warehouses - Support both Firebase and Supabase
     async function getWarehouses() {
+        console.log('🏭 Getting warehouses...');
+        
         // Try Supabase first
         if (window.supabaseClient && window.currentUser) {
             try {
@@ -702,53 +517,81 @@ window.NFWarehouse = (function() {
                     .eq('user_id', window.currentUser.id)
                     .order('name');
                 
-                if (error) throw error;
-                
-                if (!data || data.length === 0) {
-                    // Return defaults but don't auto-create in Supabase
+                // If table doesn't exist or other error, use defaults
+                if (error) {
+                    console.warn('Warehouses table error (using defaults):', error.message);
                     return DEFAULT_WAREHOUSES;
                 }
                 
+                if (!data || data.length === 0) {
+                    console.log('No warehouses found, using defaults');
+                    return DEFAULT_WAREHOUSES;
+                }
+                
+                console.log('Loaded warehouses from Supabase:', data.length);
                 return data;
             } catch (error) {
-                console.error('Error fetching warehouses from Supabase:', error);
+                console.warn('Error fetching warehouses from Supabase (using defaults):', error);
                 return DEFAULT_WAREHOUSES;
             }
         }
         
         // Fallback to Firebase
-        if (!window.currentUser || !window.db) return DEFAULT_WAREHOUSES;
-        
-        try {
-            const snapshot = await window.db.collection('users')
-                .doc(window.currentUser.uid)
-                .collection('warehouses')
-                .get();
-            
-            if (snapshot.empty) {
-                // Initialize with defaults
-                for (const wh of DEFAULT_WAREHOUSES) {
-                    await window.db.collection('users')
-                        .doc(window.currentUser.uid)
-                        .collection('warehouses')
-                        .doc(wh.id)
-                        .set(wh);
+        if (window.db && window.currentUser && window.currentUser.uid) {
+            try {
+                const snapshot = await window.db.collection('users')
+                    .doc(window.currentUser.uid)
+                    .collection('warehouses')
+                    .get();
+                
+                if (snapshot.empty) {
+                    // Initialize with defaults
+                    for (const wh of DEFAULT_WAREHOUSES) {
+                        await window.db.collection('users')
+                            .doc(window.currentUser.uid)
+                            .collection('warehouses')
+                            .doc(wh.id)
+                            .set(wh);
+                    }
+                    return DEFAULT_WAREHOUSES;
                 }
+                
+                return snapshot.docs.map(doc => ({
+                    id: doc.id,
+                    ...doc.data()
+                }));
+            } catch (error) {
+                console.warn('Error fetching warehouses from Firebase (using defaults):', error);
                 return DEFAULT_WAREHOUSES;
             }
-            
-            return snapshot.docs.map(doc => ({
-                id: doc.id,
-                ...doc.data()
-            }));
-        } catch (error) {
-            console.error('Error fetching warehouses:', error);
-            return DEFAULT_WAREHOUSES;
+        }
+        
+        // No database available, return defaults + local warehouses
+        console.log('No database available, using default warehouses + localStorage');
+        return getWarehousesWithLocal(DEFAULT_WAREHOUSES);
+    }
+    
+    // Merge warehouses with localStorage custom warehouses
+    function getWarehousesWithLocal(dbWarehouses) {
+        try {
+            const storageKey = 'nf_custom_warehouses';
+            const localWarehouses = JSON.parse(localStorage.getItem(storageKey) || '[]');
+            return [...dbWarehouses, ...localWarehouses];
+        } catch (e) {
+            return dbWarehouses;
         }
     }
     
-    // Add warehouse - Support both Firebase and Supabase
+    // Add warehouse - Support both Firebase and Supabase + localStorage fallback
     async function addWarehouse(warehouse) {
+        console.log('Adding warehouse:', warehouse);
+        
+        // Validate warehouse data
+        if (!warehouse || !warehouse.name || !warehouse.location) {
+            console.error('Invalid warehouse data:', warehouse);
+            return { success: false, error: 'بيانات المستودع غير مكتملة' };
+        }
+        
         // Try Supabase first
         if (window.supabaseClient && window.currentUser) {
             try {
@@ -762,33 +605,79 @@ window.NFWarehouse = (function() {
                     .select()
                     .single();
                 
-                if (error) throw error;
+                if (error) {
+                    // Table doesn't exist - use localStorage fallback
+                    if (error.code === '42P01' || error.message?.includes('does not exist')) {
+                        console.warn('Warehouses table does not exist, using localStorage');
+                        return saveWarehouseToLocal(warehouse);
+                    }
+                    // Duplicate key error
+                    if (error.code === '23505' || error.message?.includes('duplicate')) {
+                        return { success: false, error: 'مستودع بهذا الاسم موجود مسبقاً' };
+                    }
+                    throw error;
+                }
                 
-                NFActivity.log('WAREHOUSE_TRANSFER', { warehouse: warehouse.name, action: 'إضافة مستودع' });
-                return data.id;
+                NFActivity.log('WAREHOUSE_ADDED', { warehouse: warehouse.name, action: 'إضافة مستودع' });
+                console.log('Warehouse added successfully to Supabase:', data.id);
+                return { success: true, id: data.id };
             } catch (error) {
                 console.error('Error adding warehouse to Supabase:', error);
-                return null;
+                // Fallback to localStorage
+                return saveWarehouseToLocal(warehouse);
             }
         }
         
-        // Fallback to Firebase
-        if (!window.currentUser || !window.db) return null;
+        // Try Firebase
+        if (window.db && window.currentUser && window.currentUser.uid) {
+            try {
+                const docRef = await window.db.collection('users')
+                    .doc(window.currentUser.uid)
+                    .collection('warehouses')
+                    .add({
+                        ...warehouse,
+                        createdAt: firebase.firestore.FieldValue.serverTimestamp()
+                    });
+                
+                NFActivity.log('WAREHOUSE_ADDED', { warehouse: warehouse.name, action: 'إضافة مستودع' });
+                console.log('Warehouse added successfully to Firebase:', docRef.id);
+                return { success: true, id: docRef.id };
+            } catch (error) {
+                console.error('Error adding warehouse to Firebase:', error);
+                return saveWarehouseToLocal(warehouse);
+            }
+        }
         
+        // Fallback to localStorage
+        return saveWarehouseToLocal(warehouse);
+    }
+    
+    // Save warehouse to localStorage as fallback
+    function saveWarehouseToLocal(warehouse) {
         try {
-            const docRef = await window.db.collection('users')
-                .doc(window.currentUser.uid)
-                .collection('warehouses')
-                .add({
-                    ...warehouse,
-                    createdAt: firebase.firestore.FieldValue.serverTimestamp()
-                });
+            const storageKey = 'nf_custom_warehouses';
+            const existing = JSON.parse(localStorage.getItem(storageKey) || '[]');
             
-            NFActivity.log('WAREHOUSE_TRANSFER', { warehouse: warehouse.name, action: 'إضافة مستودع' });
-            return docRef.id;
+            // Check for duplicate
+            if (existing.some(w => w.name.toLowerCase() === warehouse.name.toLowerCase())) {
+                return { success: false, error: 'مستودع بهذا الاسم موجود مسبقاً' };
+            }
+            
+            const newWarehouse = {
+                ...warehouse,
+                id: 'local_' + Date.now(),
+                createdAt: new Date().toISOString()
+            };
+            
+            existing.push(newWarehouse);
+            localStorage.setItem(storageKey, JSON.stringify(existing));
+            
+            NFActivity.log('WAREHOUSE_ADDED', { warehouse: warehouse.name, action: 'إضافة مستودع (محلي)' });
+            console.log('Warehouse saved to localStorage:', newWarehouse.id);
+            return { success: true, id: newWarehouse.id };
         } catch (error) {
-            console.error('Error adding warehouse:', error);
-            return null;
+            console.error('Error saving warehouse to localStorage:', error);
+            return { success: false, error: 'فشل في حفظ المستودع: ' + error.message };
         }
     }
     
@@ -983,22 +872,48 @@ window.NFWarehouse = (function() {
         const location = document.getElementById('whLocation')?.value.trim();
         const capacity = parseInt(document.getElementById('whCapacity')?.value) || 50;
         
-        if (!name || !location) {
-            window.showNotification?.('يرجى ملء جميع الحقول المطلوبة', 'warning');
+        if (!name) {
+            window.showNotification?.('يرجى إدخال اسم المستودع', 'warning');
             return;
         }
         
-        const result = await addWarehouse({ name, location, capacity });
+        if (!location) {
+            window.showNotification?.('يرجى إدخال موقع المستودع', 'warning');
+            return;
+        }
         
-        if (result) {
-            window.showNotification?.('تم إضافة المستودع بنجاح', 'success');
-            document.getElementById('warehouseModal')?.remove();
-            // Refresh warehouse page if visible
-            if (document.getElementById('warehouseSection')) {
-                await refreshWarehousePage();
+        // Disable button to prevent double-click
+        const saveBtn = document.querySelector('#warehouseModal .btn-primary');
+        if (saveBtn) {
+            saveBtn.disabled = true;
+            saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري الحفظ...';
+        }
+        
+        try {
+            const result = await addWarehouse({ name, location, capacity });
+            
+            if (result.success) {
+                window.showNotification?.('تم إضافة المستودع بنجاح', 'success');
+                document.getElementById('warehouseModal')?.remove();
+                // Refresh warehouse page if visible
+                if (document.getElementById('warehouseSection')) {
+                    await refreshWarehousePage();
+                }
+            } else {
+                window.showNotification?.(result.error || 'حدث خطأ أثناء الإضافة', 'error');
+                // Re-enable button
+                if (saveBtn) {
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+                }
             }
-        } else {
-            window.showNotification?.('حدث خطأ أثناء الإضافة', 'error');
+        } catch (error) {
+            console.error('Save warehouse error:', error);
+            window.showNotification?.('حدث خطأ غير متوقع: ' + error.message, 'error');
+            if (saveBtn) {
+                saveBtn.disabled = false;
+                saveBtn.innerHTML = '<i class="fas fa-save"></i> حفظ';
+            }
         }
     }
     
@@ -1023,9 +938,7 @@ window.NFWarehouse = (function() {
         container.innerHTML = createWarehousePageHTML(warehouses, stats);
     }
     
-    console.log('🏭 NFWarehouse initialized');
-    
-    return {
+    const publicAPI = {
         getAll: getWarehouses,
         add: addWarehouse,
         getStats: getWarehouseStats,
@@ -1037,6 +950,10 @@ window.NFWarehouse = (function() {
         viewVehicles,
         refresh: refreshWarehousePage
     };
+    
+    console.log('🏭 NFWarehouse initialized with methods:', Object.keys(publicAPI));
+    
+    return publicAPI;
 })();
 
 // ===== Vehicle Operation Status =====
