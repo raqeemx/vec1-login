@@ -1270,12 +1270,7 @@ window.NFExcelExport = (function() {
                 for (let colIndex = mapsColIndex; colIndex <= lastPhotoColIndex; colIndex++) {
                     const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
                     if (vehiclesSheet[cellRef]) {
-                        const cell = vehiclesSheet[cellRef];
-                        cell.v = typeof cell.v === 'string' ? cell.v : String(cell.v || '');
-                        cell.t = 's';
-                        if (cell.l) {
-                            delete cell.l;
-                        }
+                        vehiclesSheet[cellRef].t = 's';
                     }
                 }
             });
