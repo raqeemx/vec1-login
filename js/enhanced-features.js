@@ -1199,6 +1199,7 @@ window.NFExcelExport = (function() {
             }
             
             // Data rows
+            const linkRows = [];
             const data = vehicles.map(v => {
                 // Generate Google Maps URL
                 let mapsUrl = '';
@@ -1208,6 +1209,7 @@ window.NFExcelExport = (function() {
                 
                 // Get valid image URLs
                 const validImages = getValidImageUrls(v.images);
+                linkRows.push({ mapsUrl, validImages });
                 
                 // Base row data
                 const rowData = [
