@@ -1145,9 +1145,9 @@ window.NFExcelExport = (function() {
                 [`إجمالي الصور: ${totalImages}`],
                 [''],
                 ['💡 ملاحظات مهمة:'],
-                ['- عمود "Open Map" يحتوي على روابط لفتح موقع المركبة في خرائط Google'],
-                ['- أعمدة "صورة 1"، "صورة 2"، إلخ تحتوي على روابط مباشرة للصور'],
-                ['- اضغط على الروابط لفتحها في المتصفح']
+                ['- عمود "Open Map" يحتوي على رابط نصي لموقع المركبة في خرائط Google'],
+                ['- أعمدة "صورة 1"، "صورة 2"، إلخ تحتوي على روابط نصية مباشرة للصور'],
+                ['- يمكن تعديل الخلية ليحول Excel النص إلى رابط تلقائياً عند التحرير']
             ];
             
             const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
@@ -1259,32 +1259,79 @@ window.NFExcelExport = (function() {
             
             vehiclesSheet['!cols'] = colWidths;
             
-            // Add hyperlinks for Maps and Photo columns
+            // Force Maps and Photo columns to plain text cells (no hyperlinks)
             const mapsColIndex = 19;  // Open Map column index
             const firstPhotoColIndex = 20;  // First photo column index
-            
-            vehicles.forEach((v, index) => {
-                const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1-indexed + header row)
-                
-                // Maps link
-                if (v.gpsLatitude && v.gpsLongitude) {
-                    const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
-                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: mapsColIndex });
+            const lastPhotoColIndex = firstPhotoColIndex + Math.max(maxImages - 1, 0);
+
+            vehicles.forEach((_, index) => {
+                const rowNum = index + 1; // 0-based row index in sheet (header is row 0)
+
+                for (let colIndex = mapsColIndex; colIndex <= lastPhotoColIndex; colIndex++) {
+                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
                     if (vehiclesSheet[cellRef]) {
-                        vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
+                        const cell = vehiclesSheet[cellRef];
+                        cell.v = typeof cell.v === 'string' ? cell.v : String(cell.v || '');
+                        cell.t = 's';
+                        if (cell.l) {
+                            delete cell.l;
+                        }
                     }
                 }
-                
-                // Photo links - add hyperlink to each photo column
-                const validImages = getValidImageUrls(v.images);
-                validImages.forEach((imgUrl, imgIndex) => {
-                    const colIndex = firstPhotoColIndex + imgIndex;
-                    const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
-                    if (vehiclesSheet[cellRef] && imgUrl) {
-                        vehiclesSheet[cellRef].l = { Target: imgUrl, Tooltip: `انقر لعرض الصورة ${imgIndex + 1}` };
-                    }
-                });
             });
+
+            function runLinkSelfCheck(buffer, expectedVehicles, expectedMaxImages) {
+                try {
+                    const parsedWb = XLSX.read(buffer, { type: 'array' });
+                    const ws = parsedWb.Sheets['المركبات'];
+                    if (!ws) {
+                        console.error('Excel export self-check failed: sheet "المركبات" not found.');
+                        return;
+                    }
+
+                    const errors = [];
+                    const lastPhotoCol = firstPhotoColIndex + Math.max(expectedMaxImages - 1, 0);
+
+                    expectedVehicles.forEach((vehicle, index) => {
+                        const rowNum = index + 1;
+                        const expectedMapUrl = vehicle.gpsLatitude && vehicle.gpsLongitude
+                            ? `https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}`
+                            : '';
+                        const expectedImages = getValidImageUrls(vehicle.images);
+
+                        for (let colIndex = mapsColIndex; colIndex <= lastPhotoCol; colIndex++) {
+                            const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
+                            const cell = ws[cellRef];
+
+                            if (cell && cell.l) {
+                                errors.push(`${cellRef}: hyperlink detected`);
+                            }
+
+                            if (colIndex === mapsColIndex && expectedMapUrl) {
+                                if (!cell || cell.v !== expectedMapUrl) {
+                                    errors.push(`${cellRef}: expected map URL text`);
+                                }
+                            }
+
+                            if (colIndex > mapsColIndex) {
+                                const imageIndex = colIndex - firstPhotoColIndex;
+                                const expectedImageUrl = expectedImages[imageIndex] || '';
+                                if (expectedImageUrl) {
+                                    if (!cell || cell.v !== expectedImageUrl) {
+                                        errors.push(`${cellRef}: expected image URL text`);
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    if (errors.length > 0) {
+                        console.error('Excel export self-check failed:\n' + errors.join('\n'));
+                    }
+                } catch (selfCheckError) {
+                    console.error('Excel export self-check failed with error:', selfCheckError);
+                }
+            }
             
             XLSX.utils.book_append_sheet(wb, vehiclesSheet, 'المركبات');
             
@@ -1298,7 +1345,10 @@ window.NFExcelExport = (function() {
             
             const date = new Date().toISOString().split('T')[0];
             const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-            XLSX.writeFile(wb, `Vehicles_Export_${date}_${time}.xlsx`);
+            const exportFileName = `Vehicles_Export_${date}_${time}.xlsx`;
+            const exportBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            runLinkSelfCheck(exportBuffer, vehicles, maxImages);
+            XLSX.writeFile(wb, exportFileName);
             
             if (window.showNotification) {
                 showNotification(`تم تصدير ${vehicles.length} مركبة و ${totalImages} صورة بنجاح! 📊`, 'success');
