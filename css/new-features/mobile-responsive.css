@@ -1,0 +1,644 @@
+/**
+ * ========================================
+ * 📱 Mobile Responsive Enhancements
+ * ========================================
+ * 
+ * تحسينات شاملة لعرض الموقع على الهاتف
+ * 
+ * يشمل:
+ * - تحسين القائمة الجانبية
+ * - تحسين بطاقات المركبات
+ * - تحسين النماذج والأزرار
+ * - تحسين الجداول والقوائم
+ * - Touch-friendly interactions
+ */
+
+/* ===== Base Mobile Enhancements ===== */
+@media (max-width: 992px) {
+    /* Improve touch targets */
+    .btn, button, .menu-item, .vehicle-card, input, select, textarea {
+        min-height: 44px;
+    }
+    
+    /* Better font scaling */
+    html {
+        font-size: 16px;
+        -webkit-text-size-adjust: 100%;
+    }
+    
+    /* Prevent horizontal scroll */
+    body {
+        overflow-x: hidden;
+    }
+}
+
+/* ===== Sidebar Mobile Improvements ===== */
+@media (max-width: 992px) {
+    .sidebar {
+        width: 85%;
+        max-width: 320px;
+        box-shadow: -5px 0 30px rgba(0,0,0,0.3);
+    }
+    
+    .sidebar.show {
+        transform: translateX(0);
+    }
+    
+    /* Overlay when sidebar is open */
+    .sidebar-overlay {
+        display: none;
+        position: fixed;
+        inset: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 999;
+        backdrop-filter: blur(2px);
+    }
+    
+    .sidebar.show ~ .sidebar-overlay,
+    body.sidebar-open .sidebar-overlay {
+        display: block;
+    }
+    
+    .mobile-menu-toggle {
+        display: flex !important;
+        align-items: center;
+        justify-content: center;
+        z-index: 1002;
+    }
+    
+    /* Close button inside sidebar */
+    .sidebar-close-btn {
+        position: absolute;
+        top: 20px;
+        left: 20px;
+        width: 40px;
+        height: 40px;
+        background: rgba(255,255,255,0.2);
+        border: none;
+        border-radius: 10px;
+        color: white;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 1.2rem;
+    }
+    
+    .sidebar-header {
+        padding: 25px 20px;
+        padding-top: 70px; /* Space for close button */
+    }
+    
+    .menu-item {
+        padding: 18px 20px;
+        font-size: 1rem;
+    }
+    
+    .menu-item i {
+        font-size: 1.3rem;
+        width: 30px;
+    }
+}
+
+/* ===== Main Content Mobile ===== */
+@media (max-width: 992px) {
+    .main-content {
+        margin-right: 0;
+        padding-bottom: 80px; /* Space for bottom nav if added */
+    }
+}
+
+/* ===== Top Bar Mobile ===== */
+@media (max-width: 768px) {
+    .top-bar {
+        padding: 15px;
+        flex-direction: column;
+        gap: 15px;
+    }
+    
+    .top-bar h1 {
+        font-size: 1.1rem;
+        text-align: center;
+        width: 100%;
+        margin-left: 50px; /* Space for menu button */
+    }
+    
+    .top-bar-actions {
+        width: 100%;
+        justify-content: center;
+        gap: 8px;
+    }
+    
+    .top-bar-actions .btn {
+        flex: 1;
+        max-width: 160px;
+        padding: 12px 15px;
+        font-size: 0.85rem;
+    }
+    
+    .top-bar-actions .btn .btn-text {
+        display: none;
+    }
+    
+    .top-bar-actions .btn i {
+        margin: 0;
+    }
+}
+
+@media (max-width: 480px) {
+    .top-bar-actions .btn {
+        padding: 10px;
+        max-width: 50px;
+    }
+}
+
+/* ===== Vehicle Cards Mobile ===== */
+@media (max-width: 768px) {
+    .vehicles-section {
+        padding: 15px;
+    }
+    
+    .vehicles-grid {
+        grid-template-columns: 1fr;
+        gap: 15px;
+    }
+    
+    .vehicle-card {
+        border-radius: 12px;
+        padding: 15px;
+    }
+    
+    .vehicle-header {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .vehicle-title {
+        font-size: 1.1rem;
+    }
+    
+    .vehicle-status {
+        align-self: flex-start;
+    }
+    
+    .vehicle-details {
+        grid-template-columns: 1fr;
+        gap: 8px;
+    }
+    
+    .detail-item {
+        font-size: 0.85rem;
+        padding: 8px 0;
+        border-bottom: 1px solid #f1f5f9;
+    }
+    
+    .detail-item:last-child {
+        border-bottom: none;
+    }
+    
+    .vehicle-value {
+        padding: 12px;
+        margin-bottom: 12px;
+    }
+    
+    .vehicle-value strong {
+        font-size: 1.2rem;
+    }
+    
+    .vehicle-actions {
+        grid-template-columns: repeat(3, 1fr);
+        gap: 6px;
+    }
+    
+    .btn-view, .btn-edit, .btn-delete {
+        padding: 12px 8px;
+        font-size: 0.8rem;
+    }
+    
+    .btn-view span, .btn-edit span, .btn-delete span {
+        display: none;
+    }
+    
+    .vehicle-images {
+        margin: 10px 0;
+    }
+    
+    .vehicle-image-thumb {
+        width: 70px;
+        height: 52px;
+    }
+}
+
+@media (max-width: 480px) {
+    .vehicle-actions {
+        gap: 5px;
+    }
+    
+    .btn-view, .btn-edit, .btn-delete {
+        padding: 10px 6px;
+        font-size: 0.75rem;
+    }
+}
+
+/* ===== Modal Mobile ===== */
+@media (max-width: 768px) {
+    .modal {
+        padding: 10px;
+        align-items: flex-end;
+    }
+    
+    .modal-content {
+        max-height: 95vh;
+        border-radius: 20px 20px 0 0;
+        width: 100%;
+        max-width: 100%;
+        margin-bottom: 0;
+    }
+    
+    .modal-header {
+        padding: 15px 20px;
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+    
+    .modal-header h3 {
+        font-size: 1.1rem;
+    }
+    
+    .modal-body {
+        padding: 20px;
+        max-height: calc(95vh - 140px);
+        overflow-y: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    .modal-footer {
+        padding: 15px 20px;
+        position: sticky;
+        bottom: 0;
+        flex-wrap: wrap;
+        gap: 10px;
+    }
+    
+    .modal-footer .btn {
+        flex: 1;
+        min-width: 45%;
+    }
+    
+    .form-row {
+        grid-template-columns: 1fr !important;
+        gap: 15px;
+    }
+    
+    .form-group {
+        margin-bottom: 15px;
+    }
+    
+    .form-group label {
+        font-size: 0.9rem;
+        margin-bottom: 6px;
+    }
+    
+    .form-input, .form-select, .form-textarea {
+        padding: 14px 12px;
+        font-size: 16px; /* Prevents zoom on iOS */
+        border-radius: 8px;
+    }
+    
+    /* View Modal */
+    .view-modal-content {
+        max-width: 100%;
+    }
+    
+    .view-details-grid {
+        grid-template-columns: 1fr !important;
+        gap: 12px;
+    }
+    
+    .view-detail-item {
+        padding: 12px;
+    }
+    
+    .view-images-gallery {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 10px;
+    }
+}
+
+@media (max-width: 480px) {
+    .modal-content {
+        max-height: 100vh;
+        border-radius: 0;
+    }
+    
+    .view-images-gallery {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* ===== GPS Section Mobile ===== */
+@media (max-width: 768px) {
+    .form-group.full-width[style*="background"] {
+        padding: 12px;
+    }
+    
+    .form-group.full-width[style*="background"] .form-row {
+        gap: 10px;
+    }
+    
+    .form-group.full-width[style*="background"] .btn {
+        flex: 1;
+        min-width: 100%;
+        margin-bottom: 8px;
+    }
+    
+    #gpsStatus {
+        display: block !important;
+        width: 100%;
+        text-align: center;
+        margin-top: 10px;
+    }
+}
+
+/* ===== Image Upload Mobile ===== */
+@media (max-width: 768px) {
+    .image-upload-area {
+        padding: 25px 15px;
+    }
+    
+    .image-upload-area i {
+        font-size: 2.5rem;
+    }
+    
+    .image-preview-container {
+        justify-content: flex-start;
+    }
+    
+    .image-preview-item {
+        width: 80px;
+        height: 65px;
+    }
+}
+
+/* ===== Stats Section Mobile ===== */
+@media (max-width: 768px) {
+    .nf-enhanced-stats {
+        padding: 15px;
+    }
+    
+    .nf-stats-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px;
+    }
+    
+    .nf-stat-card {
+        padding: 15px;
+    }
+    
+    .nf-stat-value {
+        font-size: 1.5rem;
+    }
+    
+    .nf-stat-label {
+        font-size: 0.8rem;
+    }
+}
+
+@media (max-width: 480px) {
+    .nf-stats-grid {
+        grid-template-columns: 1fr !important;
+    }
+}
+
+/* ===== Filters Mobile ===== */
+@media (max-width: 768px) {
+    #nf-filters-container {
+        padding: 15px !important;
+    }
+    
+    .nf-filters-wrapper {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .nf-filter-group {
+        width: 100%;
+    }
+    
+    .nf-filter-input,
+    .nf-filter-select {
+        width: 100%;
+        padding: 12px;
+        font-size: 16px;
+    }
+    
+    .nf-filter-buttons {
+        flex-wrap: wrap;
+        gap: 8px;
+    }
+    
+    .nf-filter-buttons .btn {
+        flex: 1;
+        min-width: 45%;
+    }
+}
+
+/* ===== Connection Status Mobile ===== */
+@media (max-width: 768px) {
+    .connection-status {
+        bottom: 10px;
+        left: 10px;
+        padding: 8px 12px;
+        font-size: 0.75rem;
+        border-radius: 20px;
+    }
+    
+    .status-dot {
+        width: 8px;
+        height: 8px;
+    }
+}
+
+/* ===== Loading Overlay Mobile ===== */
+@media (max-width: 768px) {
+    .loading-content {
+        padding: 30px;
+        margin: 20px;
+        border-radius: 15px;
+    }
+    
+    .loading-spinner {
+        width: 40px;
+        height: 40px;
+    }
+}
+
+/* ===== Confirm Dialog Mobile ===== */
+@media (max-width: 768px) {
+    .confirm-dialog {
+        margin: 20px;
+        padding: 25px 20px;
+        max-width: calc(100% - 40px);
+    }
+    
+    .confirm-dialog i {
+        font-size: 2.5rem;
+    }
+    
+    .confirm-dialog h4 {
+        font-size: 1.1rem;
+    }
+    
+    .confirm-dialog-buttons {
+        flex-direction: column;
+        gap: 10px;
+    }
+    
+    .confirm-dialog-buttons .btn {
+        width: 100%;
+    }
+}
+
+/* ===== Lightbox Mobile ===== */
+@media (max-width: 768px) {
+    .lightbox img {
+        max-width: 95%;
+        max-height: 85%;
+    }
+    
+    .lightbox-close {
+        top: 10px;
+        left: 10px;
+        width: 40px;
+        height: 40px;
+        font-size: 1.2rem;
+    }
+}
+
+/* ===== Empty State Mobile ===== */
+@media (max-width: 768px) {
+    .empty-state {
+        padding: 40px 20px;
+    }
+    
+    .empty-state i {
+        font-size: 3rem;
+    }
+    
+    .empty-state h3 {
+        font-size: 1.1rem;
+    }
+}
+
+/* ===== Tables Mobile ===== */
+@media (max-width: 768px) {
+    table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+    
+    th, td {
+        padding: 10px 12px;
+        font-size: 0.85rem;
+        white-space: nowrap;
+    }
+}
+
+/* ===== Touch Enhancements ===== */
+@media (hover: none) and (pointer: coarse) {
+    /* Remove hover effects on touch devices */
+    .vehicle-card:hover {
+        transform: none;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.05);
+    }
+    
+    .btn:hover {
+        transform: none;
+    }
+    
+    .menu-item:hover {
+        background: transparent;
+        border-right-color: transparent;
+    }
+    
+    /* Active states for touch */
+    .btn:active {
+        transform: scale(0.97);
+        opacity: 0.9;
+    }
+    
+    .vehicle-card:active {
+        transform: scale(0.99);
+    }
+    
+    .menu-item:active {
+        background: #f8fafc;
+        border-right-color: var(--primary);
+    }
+}
+
+/* ===== iOS Safe Area Support ===== */
+@supports (padding: max(0px)) {
+    .modal-content {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    
+    .sidebar {
+        padding-bottom: max(20px, env(safe-area-inset-bottom));
+    }
+    
+    .main-content {
+        padding-bottom: max(80px, calc(env(safe-area-inset-bottom) + 60px));
+    }
+}
+
+/* ===== Landscape Mode ===== */
+@media (max-height: 500px) and (orientation: landscape) {
+    .modal-content {
+        max-height: 100vh;
+    }
+    
+    .modal-body {
+        max-height: calc(100vh - 120px);
+    }
+    
+    .sidebar-header {
+        padding: 15px 20px;
+    }
+    
+    .user-info {
+        padding: 10px;
+    }
+    
+    .menu-item {
+        padding: 12px 20px;
+    }
+}
+
+/* ===== Print Hidden Elements ===== */
+@media print {
+    .mobile-menu-toggle,
+    .sidebar-close-btn,
+    .connection-status,
+    .lightbox,
+    .modal {
+        display: none !important;
+    }
+}
+
+/* ===== Dark Mode Mobile Adjustments ===== */
+@media (max-width: 768px) {
+    html.dark .vehicle-card {
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    html.dark .modal-content {
+        border-radius: 20px 20px 0 0;
+    }
+    
+    html.dark .detail-item {
+        border-color: #334155;
+    }
+}
