@@ -1264,14 +1264,15 @@ window.NFExcelExport = (function() {
             const firstPhotoColIndex = 20;  // First photo column index
             
             vehicles.forEach((v, index) => {
-                const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1-indexed + header row)
+                const rowNum = index + 1; // 0-based row index; header is row 0 so first data row is 1
                 
                 // Maps link
                 if (v.gpsLatitude && v.gpsLongitude) {
                     const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
                     const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: mapsColIndex });
                     if (vehiclesSheet[cellRef]) {
-                        vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
+                        const cellValue = vehiclesSheet[cellRef].v || mapsUrl;
+                        vehiclesSheet[cellRef].l = { Target: cellValue, Tooltip: 'انقر لفتح الموقع في الخرائط' };
                     }
                 }
                 
@@ -1281,7 +1282,8 @@ window.NFExcelExport = (function() {
                     const colIndex = firstPhotoColIndex + imgIndex;
                     const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
                     if (vehiclesSheet[cellRef] && imgUrl) {
-                        vehiclesSheet[cellRef].l = { Target: imgUrl, Tooltip: `انقر لعرض الصورة ${imgIndex + 1}` };
+                        const cellValue = vehiclesSheet[cellRef].v || imgUrl;
+                        vehiclesSheet[cellRef].l = { Target: cellValue, Tooltip: `انقر لعرض الصورة ${imgIndex + 1}` };
                     }
                 });
             });
