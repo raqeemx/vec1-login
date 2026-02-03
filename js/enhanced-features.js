@@ -1274,6 +1274,59 @@ window.NFExcelExport = (function() {
                     }
                 }
             });
+
+            function runLinkSelfCheck(buffer, expectedVehicles, expectedMaxImages) {
+                try {
+                    const parsedWb = XLSX.read(buffer, { type: 'array' });
+                    const ws = parsedWb.Sheets['المركبات'];
+                    if (!ws) {
+                        console.error('Excel export self-check failed: sheet "المركبات" not found.');
+                        return;
+                    }
+
+                    const errors = [];
+                    const lastPhotoCol = firstPhotoColIndex + Math.max(expectedMaxImages - 1, 0);
+
+                    expectedVehicles.forEach((vehicle, index) => {
+                        const rowNum = index + 1;
+                        const expectedMapUrl = vehicle.gpsLatitude && vehicle.gpsLongitude
+                            ? `https://www.google.com/maps?q=${vehicle.gpsLatitude},${vehicle.gpsLongitude}`
+                            : '';
+                        const expectedImages = getValidImageUrls(vehicle.images);
+
+                        for (let colIndex = mapsColIndex; colIndex <= lastPhotoCol; colIndex++) {
+                            const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
+                            const cell = ws[cellRef];
+
+                            if (cell && cell.l) {
+                                errors.push(`${cellRef}: hyperlink detected`);
+                            }
+
+                            if (colIndex === mapsColIndex && expectedMapUrl) {
+                                if (!cell || cell.v !== expectedMapUrl) {
+                                    errors.push(`${cellRef}: expected map URL text`);
+                                }
+                            }
+
+                            if (colIndex > mapsColIndex) {
+                                const imageIndex = colIndex - firstPhotoColIndex;
+                                const expectedImageUrl = expectedImages[imageIndex] || '';
+                                if (expectedImageUrl) {
+                                    if (!cell || cell.v !== expectedImageUrl) {
+                                        errors.push(`${cellRef}: expected image URL text`);
+                                    }
+                                }
+                            }
+                        }
+                    });
+
+                    if (errors.length > 0) {
+                        console.error('Excel export self-check failed:\n' + errors.join('\n'));
+                    }
+                } catch (selfCheckError) {
+                    console.error('Excel export self-check failed with error:', selfCheckError);
+                }
+            }
             
             XLSX.utils.book_append_sheet(wb, vehiclesSheet, 'المركبات');
             
@@ -1287,7 +1340,10 @@ window.NFExcelExport = (function() {
             
             const date = new Date().toISOString().split('T')[0];
             const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
-            XLSX.writeFile(wb, `Vehicles_Export_${date}_${time}.xlsx`);
+            const exportFileName = `Vehicles_Export_${date}_${time}.xlsx`;
+            const exportBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
+            runLinkSelfCheck(exportBuffer, vehicles, maxImages);
+            XLSX.writeFile(wb, exportFileName);
             
             if (window.showNotification) {
                 showNotification(`تم تصدير ${vehicles.length} مركبة و ${totalImages} صورة بنجاح! 📊`, 'success');
