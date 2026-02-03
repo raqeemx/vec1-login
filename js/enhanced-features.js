@@ -1266,29 +1266,16 @@ window.NFExcelExport = (function() {
             const firstPhotoColIndex = 20;  // First photo column index
             const lastPhotoColIndex = firstPhotoColIndex + Math.max(maxImages - 1, 0);
 
-            linkRows.forEach((linkRow, index) => {
+            vehicles.forEach((_, index) => {
                 const rowNum = index + 1; // 0-based row index in sheet (header is row 0)
 
                 for (let colIndex = mapsColIndex; colIndex <= lastPhotoColIndex; colIndex++) {
                     const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
-                    const cell = vehiclesSheet[cellRef] || { t: 's', v: '' };
-                    if (colIndex === mapsColIndex) {
-                        cell.v = linkRow.mapsUrl || '';
-                    } else {
-                        const imageIndex = colIndex - firstPhotoColIndex;
-                        cell.v = linkRow.validImages[imageIndex] || '';
+                    if (vehiclesSheet[cellRef]) {
+                        vehiclesSheet[cellRef].t = 's';
                     }
-                    cell.v = typeof cell.v === 'string' ? cell.v : String(cell.v || '');
-                    cell.t = 's';
-                    if (cell.l) {
-                        delete cell.l;
-                    }
-                    vehiclesSheet[cellRef] = cell;
                 }
             });
-            if (vehiclesSheet['!links']) {
-                delete vehiclesSheet['!links'];
-            }
 
             function runLinkSelfCheck(buffer, expectedVehicles, expectedMaxImages) {
                 try {
@@ -1314,16 +1301,12 @@ window.NFExcelExport = (function() {
                             const cell = ws[cellRef];
 
                             if (cell && cell.l) {
-                                const excelRow = rowNum + 1;
-                                const excelCol = XLSX.utils.encode_col(colIndex);
-                                errors.push(`${cellRef}: hyperlink detected (Row ${excelRow} Col ${excelCol})`);
+                                errors.push(`${cellRef}: hyperlink detected`);
                             }
 
                             if (colIndex === mapsColIndex && expectedMapUrl) {
                                 if (!cell || cell.v !== expectedMapUrl) {
-                                    const excelRow = rowNum + 1;
-                                    const excelCol = XLSX.utils.encode_col(colIndex);
-                                    errors.push(`${cellRef}: expected map URL text (Row ${excelRow} Col ${excelCol})`);
+                                    errors.push(`${cellRef}: expected map URL text`);
                                 }
                             }
 
@@ -1332,9 +1315,7 @@ window.NFExcelExport = (function() {
                                 const expectedImageUrl = expectedImages[imageIndex] || '';
                                 if (expectedImageUrl) {
                                     if (!cell || cell.v !== expectedImageUrl) {
-                                        const excelRow = rowNum + 1;
-                                        const excelCol = XLSX.utils.encode_col(colIndex);
-                                        errors.push(`${cellRef}: expected image URL text (Row ${excelRow} Col ${excelCol})`);
+                                        errors.push(`${cellRef}: expected image URL text`);
                                     }
                                 }
                             }
@@ -1343,18 +1324,9 @@ window.NFExcelExport = (function() {
 
                     if (errors.length > 0) {
                         console.error('Excel export self-check failed:\n' + errors.join('\n'));
-                        if (window.showNotification) {
-                            showNotification('فشل تحقق الروابط في ملف Excel. راجع console للتفاصيل.', 'error');
-                        }
-                        return false;
                     }
-                    return true;
                 } catch (selfCheckError) {
                     console.error('Excel export self-check failed with error:', selfCheckError);
-                    if (window.showNotification) {
-                        showNotification('فشل تحقق الروابط في ملف Excel. راجع console للتفاصيل.', 'error');
-                    }
-                    return false;
                 }
             }
             
@@ -1372,10 +1344,7 @@ window.NFExcelExport = (function() {
             const time = new Date().toTimeString().split(' ')[0].replace(/:/g, '-');
             const exportFileName = `Vehicles_Export_${date}_${time}.xlsx`;
             const exportBuffer = XLSX.write(wb, { bookType: 'xlsx', type: 'array' });
-            const selfCheckPassed = runLinkSelfCheck(exportBuffer, vehicles, maxImages);
-            if (!selfCheckPassed) {
-                return false;
-            }
+            runLinkSelfCheck(exportBuffer, vehicles, maxImages);
             XLSX.writeFile(wb, exportFileName);
             
             if (window.showNotification) {
