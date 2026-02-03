@@ -1259,30 +1259,29 @@ window.NFExcelExport = (function() {
             
             vehiclesSheet['!cols'] = colWidths;
             
-            // Ensure Maps and Photo columns are plain text (no hyperlinks)
+            // Add hyperlinks for Maps and Photo columns
             const mapsColIndex = 19;  // Open Map column index
             const firstPhotoColIndex = 20;  // First photo column index
             
             vehicles.forEach((v, index) => {
                 const rowNum = index + 2; // +2 because row 1 is headers (0-indexed becomes 1-indexed + header row)
                 
-                // Maps text cell
+                // Maps link
                 if (v.gpsLatitude && v.gpsLongitude) {
+                    const mapsUrl = `https://www.google.com/maps?q=${v.gpsLatitude},${v.gpsLongitude}`;
                     const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: mapsColIndex });
                     if (vehiclesSheet[cellRef]) {
-                        vehiclesSheet[cellRef].t = 's';
-                        vehiclesSheet[cellRef].z = '@';
+                        vehiclesSheet[cellRef].l = { Target: mapsUrl, Tooltip: 'انقر لفتح الموقع في الخرائط' };
                     }
                 }
                 
-                // Photo text cells
+                // Photo links - add hyperlink to each photo column
                 const validImages = getValidImageUrls(v.images);
                 validImages.forEach((imgUrl, imgIndex) => {
                     const colIndex = firstPhotoColIndex + imgIndex;
                     const cellRef = XLSX.utils.encode_cell({ r: rowNum, c: colIndex });
                     if (vehiclesSheet[cellRef] && imgUrl) {
-                        vehiclesSheet[cellRef].t = 's';
-                        vehiclesSheet[cellRef].z = '@';
+                        vehiclesSheet[cellRef].l = { Target: imgUrl, Tooltip: `انقر لعرض الصورة ${imgIndex + 1}` };
                     }
                 });
             });
